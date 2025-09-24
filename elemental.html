@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<title>Elemental v2</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+if ("paintWorklet" in CSS) {
+  const workletCode = `
+    const drawSquircle=(ctx,geom,radii,smooth,lineWidth,color)=>{const defaultFill=color;const lineWidthOffset=lineWidth/2;ctx.beginPath();ctx.lineTo(radii[0],lineWidthOffset);ctx.lineTo(geom.width-radii[1],lineWidthOffset);ctx.bezierCurveTo(geom.width-radii[1]/smooth,lineWidthOffset,geom.width-lineWidthOffset,radii[1]/smooth,geom.width-lineWidthOffset,radii[1]);ctx.lineTo(geom.width-lineWidthOffset,geom.height-radii[2]);ctx.bezierCurveTo(geom.width-lineWidthOffset,geom.height-radii[2]/smooth,geom.width-radii[2]/smooth,geom.height-lineWidthOffset,geom.width-radii[2],geom.height-lineWidthOffset);ctx.lineTo(radii[3],geom.height-lineWidthOffset);ctx.bezierCurveTo(radii[3]/smooth,geom.height-lineWidthOffset,lineWidthOffset,geom.height-radii[3]/smooth,lineWidthOffset,geom.height-radii[3]);ctx.lineTo(lineWidthOffset,radii[0]);ctx.bezierCurveTo(lineWidthOffset,radii[0]/smooth,radii[0]/smooth,lineWidthOffset,radii[0],lineWidthOffset);ctx.closePath();if(lineWidth){ctx.strokeStyle=defaultFill;ctx.lineWidth=lineWidth;ctx.stroke()}else{ctx.fillStyle=defaultFill;ctx.fill()}};class SquircleClass{static get contextOptions(){return{alpha:true}}static get inputProperties(){return["--squircle-radius","--squircle-radius-top-left","--squircle-radius-top-right","--squircle-radius-bottom-right","--squircle-radius-bottom-left","--squircle-smooth","--squircle-outline","--squircle-fill"]}paint(ctx,geom,properties){const smoothRatio=10;const distanceRatio=1.8;const squircleSmooth=parseFloat(properties.get("--squircle-smooth")*smoothRatio);const individualRadiiProps=SquircleClass.inputProperties.slice(1,5);let squircleRadii=individualRadiiProps.map(prop=>{const value=properties.get(prop);return value?parseInt(value,10)*distanceRatio:NaN});let shorthand_R;if(squircleRadii.some(isNaN)){const radiusRegex=/([0-9]+[a-z%]*)/g;const radius_shorthand=properties.get("--squircle-radius").toString();const matches=radius_shorthand.match(radiusRegex);if(matches){shorthand_R=matches.map(val=>parseInt(val,10)*distanceRatio);while(shorthand_R.length<4){if(shorthand_R.length===1){shorthand_R.push(shorthand_R[0])}else if(shorthand_R.length===2){shorthand_R=[shorthand_R[0],shorthand_R[1],shorthand_R[0],shorthand_R[1]]}else if(shorthand_R.length===3){shorthand_R=[shorthand_R[0],shorthand_R[1],shorthand_R[2],shorthand_R[1]]}}}else{const defaultRadius=squircleRadii.every(isNaN)?8*distanceRatio:0;shorthand_R=[defaultRadius,defaultRadius,defaultRadius,defaultRadius]}}squircleRadii=squircleRadii.map((val,i)=>isNaN(val)?shorthand_R[i]:val);const squrcleOutline=parseFloat(properties.get("--squircle-outline"),10);const squrcleColor=properties.get("--squircle-fill").toString();const isSmooth=()=>{if(typeof properties.get("--squircle-smooth")[0]!=="undefined"){if(squircleSmooth===0){return 1}return squircleSmooth}else{return 10}};const isOutline=()=>{if(squrcleOutline){return squrcleOutline}else{return 0}};const isColor=()=>{if(squrcleColor){return squrcleColor}else{return"#f45"}};const maxRadius=Math.max(...squircleRadii);if(maxRadius<geom.width/2&&maxRadius<geom.height/2){drawSquircle(ctx,geom,squircleRadii,isSmooth(),isOutline(),isColor())}else{const minRadius=Math.min(geom.width/2,geom.height/2);drawSquircle(ctx,geom,squircleRadii.map(()=>minRadius),isSmooth(),isOutline(),isColor())}}}if(typeof registerPaint!=="undefined"){registerPaint("squircle",SquircleClass)}
+  `;
+  const blob = new Blob([workletCode], { type: 'application/javascript' });
+  const blobURL = URL.createObjectURL(blob);
+  CSS.paintWorklet.addModule(blobURL);
+}
+</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&family=Zalando+Sans+SemiExpanded:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+
+<script type="importmap">
+    {
+      "imports": {
+        "@material/web/": "https://esm.run/@material/web/"
+      }
+    }
+  </script>
+  <script type="module">
+    import '@material/web/all.js';
+    import {styles as typescaleStyles} from '@material/web/typography/md-typescale-styles.js';
+
+    document.adoptedStyleSheets.push(typescaleStyles.styleSheet);
+  </script>
+
+<style>
+    :root {
+  --Black: #000000FF;
+  --Black-Light: #0F0F0FFF;
+  --Gray-Darker: #3F3F3FFF;
+  --Gray-Dark: #5F5F5FFF;
+  --Gray: #7F7F7FFF;
+  --Gray-Light: #9F9F9FFF;
+  --Gray-Lighter: #BFBFBFFF;
+  --White-Dark: #EFEFEFFF;
+  --White: #FFFFFFFF;
+  --Red: #ED1A3DFF;
+  --Yellow: #FFD400FF;
+  --Green: #00B06BFF;
+  --Blue: #2063F1FF;
+}
+    *{
+        font-family: "Noto Sans JP", sans-serif;
+    }
+    body{
+        background:var(--White);
+        color:var(--Black-Light);
+        margin:0px;
+    }
+    .navigation{
+        position:fixed;
+        bottom:0;
+        right:0;
+        height:120px;
+        width:100vw;
+        display:flex;
+    justify-content: space-evenly;
+    align-items: center;
+    }
+    .nav-content{
+        display:block;
+        width:100px;
+        text-align:center;
+        padding:8px 0px;
+        mask-image: paint(squircle);
+        --squircle-radius: 64;
+        --squircle-smooth: 0.3;
+    }
+    .nav-content.selected{
+        background:var(--White-Dark);
+    }
+    .nav-icon{
+        display:block;
+        font-size:40px;
+    }
+    .main{
+        position: relative;
+        background:var(--White-Dark);
+        padding:24px;
+        height:calc(100vh - 160px);
+        overflow: scroll;
+        mask-image: paint(squircle);
+        --squircle-radius-top-left:0;
+  --squircle-radius-top-right: 0;
+  --squircle-radius-bottom-right: 64;
+  --squircle-radius-bottom-left: 64;
+        --squircle-smooth: 1;
+    padding-bottom:16px;
+    overflow-x: hidden;
+    }
+    .main::before{
+        padding:24px;
+        content:" ";
+        position:fixed;
+        top:0;
+        left:0;
+        width:100%;
+        height:calc(100vh - 160px);
+    box-shadow: inset #0006 0px -64px 64px -64px;
+    overflow-x: hidden;
+        mask-image: paint(squircle);
+        --squircle-radius:64;
+        --squircle-smooth: 1;
+    border-radius: 64px;
+    z-index:2;
+    pointer-events: none;
+    
+    }
+    @media screen and (min-width: 550px) {
+        .main{
+            position: fixed;
+            bottom:0;
+            right:0;
+        height:calc(100vh - 60px);
+        width:calc(100vw - 190px);
+        --squircle-radius-top-left:64px;
+  --squircle-radius-top-right: 0px;
+  --squircle-radius-bottom-right: 0px;
+  --squircle-radius-bottom-left: 0px;
+    border-radius: 0px;
+
+    }
+    .main::before{
+            position: fixed;
+            top:unset;
+            left:unset;
+            bottom:0;
+            right:0;
+        height:calc(100vh - 60px);
+        width:calc(100vw - 190px);
+    box-shadow: inset #0003 32px 32px 32px -32px;
+        --squircle-radius-top-left:64;
+  --squircle-radius-top-right: 0;
+  --squircle-radius-bottom-right: 0;
+  --squircle-radius-bottom-left: 0;
+    border-radius: 60px 0px 0px 0px;
+    }
+
+    .navigation{
+        position:fixed;
+        bottom:unset;
+        right:unset;
+        top:26px;
+        left:0px;
+        width:fit-content;
+        height:fit-content;
+        display:block;
+        padding:0px 21px;
+    }
+    }
+    h1{
+        font-family: "Zalando Sans SemiExpanded", sans-serif;
+        font-weight: 200;
+        font-size:40px;
+    }
+    h2{
+        font-weight: 500;
+        margin-top:0px;
+    }
+    h3{
+        font-weight: 400;
+        margin:8px 0px;
+        font-size:16px;
+    }
+    .first{
+        background:var(--White);
+        padding:24px;
+        mask-image: paint(squircle);
+          --squircle-radius-top-left: 24px;
+  --squircle-radius-top-right: 24px;
+  --squircle-radius-bottom-right: 24px;
+  --squircle-radius-bottom-left: 24px;
+        --squircle-smooth: 1;
+        margin-bottom:16px;
+        border-radius:0px;
+    }
+    input {
+        padding: 12px;
+        border-radius: 6px;
+        background: var(--White-Dark);
+        border: 2px solid var(--Gray-Darker);
+        transition:all 0.3s cubic-bezier(.34,.24,0,1);
+        outline:none;
+    }
+    input:focus{
+         box-shadow: #0003 0px 4px 16px 4px;
+    }
+    button {
+        font-weight:bold;
+    padding: 16px;
+    color: var(--White-Dark);
+    background: var(--Black);
+    outline: 0px solid var(--Black);
+    border-radius: 10px;
+    border:none;
+    box-shadow: #0000 0px 0px 5px -5px;
+        transition:all 0.3s cubic-bezier(.34,.24,0,1);
+    }
+    button:hover{
+    color: var(--Black);
+    background: var(--White-Dark);
+    outline: 3px solid var(--Black);
+         box-shadow: #0003 0px 4px 16px 4px;
+    }
+    button:disabled{
+        background:var(--Gray-Lighter);
+        color:var(--Gray);
+        outline:none;
+        box-shadow:none;
+    }
+    button.smooth{
+        background: paint(squircle);
+        --squircle-fill: var(--Gray-Darker);
+        color:var(--White-Dark);
+        border-radius:14px;
+        outline:none;
+        --squircle-radius: 11px;
+        --squircle-smooth: 0.8;
+        position:relative;
+        --md-ripple-hover-color:#0000;
+        --md-ripple-pressed-color:var(--Black);
+        box-shadow: none;
+        filter:drop-shadow(#0000 0px 0px 0px);
+    }
+    button.smooth:hover{
+        --squircle-fill: var(--White);
+        color:var(--Gray-Darker);
+        filter:drop-shadow(#0005 0px 4px 10px);
+    }
+    button.smooth::before{
+        content: " ";
+        position:absolute;
+        top:0;
+        left:0;
+        width:100%;
+        height:100%;
+        background:var(--Black);
+        mask-image: paint(squircle);
+        --squircle-radius: 11px;
+        --squircle-smooth: 0.6;
+        --squircle-outline:3px;
+    }
+    button.smooth:hover::before {
+        background:var(--White-Dark);
+    }
+
+    button:disabled{
+        --squircle-fill: var(--Gray-Lighter)!important;
+        color: var(--Gray) !important;
+        filter: none !important;
+    }
+
+    button.smooth:disabled::before {
+        background:var(--Gray);
+    }
+    .bar{
+        width:calc(100% - 40px);
+        padding:20px;
+        color:var(--Gray-Lighter);
+        height:fit-content;
+
+        background: paint(squircle);
+        --squircle-fill: var(--Black-Light);
+        --squircle-radius: 8px;
+        --squircle-smooth: 1;
+
+    }
+
+</style>
+
+</head>
+<body>
+    <div class="navigation">
+        <div class="nav-content selected">
+            <span class="nav-icon material-symbols-rounded">home</span>
+            ホーム
+        </div>
+        <div class="nav-content">
+            <span class="nav-icon material-symbols-rounded">manage_accounts</span>
+            設定
+        </div>
+    </div>
+    <div class="main">
+    <h1>Elemental v2(Beta)</h1>
+    <div class="first">
+        <h2>スナックバー</h2>
+        <div class="bar">text</div>
+    </div>
+
+    <div class="first">
+        <h2>ボタン</h2>
+        <h3>デザイン1</h3>
+        <button>この規約に同意する</button>
+        <button disabled>選択不可能</button>
+        <h3>デザイン2</h3>
+        <button class="smooth"><md-ripple></md-ripple>この規約に同意する</button>
+        <button class="smooth" disabled>選択不可能</button>
+    </div>
+
+    <div class="first">
+        <h2>テキストボックス</h2>
+        <input placeholder="ここに入力" value=""></input>
+        <input placeholder="ここに入力" value="aaa"></input>
+    </div>
+
+
+    </div>
+</body>

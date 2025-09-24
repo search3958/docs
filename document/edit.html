@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <script type="importmap">
+    {
+      "imports": {
+        "@material/web/": "https://esm.run/@material/web/"
+      }
+    }
+  </script>
+  <script type="module">
+    import '@material/web/all.js';
+    import {styles as typescaleStyles} from '@material/web/typography/md-typescale-styles.js';
+
+    document.adoptedStyleSheets.push(typescaleStyles.styleSheet);
+  </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@100..900&display=swap" rel="stylesheet">
+    <script>
+if ("paintWorklet" in CSS) {
+  const workletCode = `
+    const drawSquircle=(ctx,geom,radii,smooth,lineWidth,color)=>{const defaultFill=color;const lineWidthOffset=lineWidth/2;ctx.beginPath();ctx.lineTo(radii[0],lineWidthOffset);ctx.lineTo(geom.width-radii[1],lineWidthOffset);ctx.bezierCurveTo(geom.width-radii[1]/smooth,lineWidthOffset,geom.width-lineWidthOffset,radii[1]/smooth,geom.width-lineWidthOffset,radii[1]);ctx.lineTo(geom.width-lineWidthOffset,geom.height-radii[2]);ctx.bezierCurveTo(geom.width-lineWidthOffset,geom.height-radii[2]/smooth,geom.width-radii[2]/smooth,geom.height-lineWidthOffset,geom.width-radii[2],geom.height-lineWidthOffset);ctx.lineTo(radii[3],geom.height-lineWidthOffset);ctx.bezierCurveTo(radii[3]/smooth,geom.height-lineWidthOffset,lineWidthOffset,geom.height-radii[3]/smooth,lineWidthOffset,geom.height-radii[3]);ctx.lineTo(lineWidthOffset,radii[0]);ctx.bezierCurveTo(lineWidthOffset,radii[0]/smooth,radii[0]/smooth,lineWidthOffset,radii[0],lineWidthOffset);ctx.closePath();if(lineWidth){ctx.strokeStyle=defaultFill;ctx.lineWidth=lineWidth;ctx.stroke()}else{ctx.fillStyle=defaultFill;ctx.fill()}};class SquircleClass{static get contextOptions(){return{alpha:true}}static get inputProperties(){return["--squircle-radius","--squircle-radius-top-left","--squircle-radius-top-right","--squircle-radius-bottom-right","--squircle-radius-bottom-left","--squircle-smooth","--squircle-outline","--squircle-fill"]}paint(ctx,geom,properties){const smoothRatio=10;const distanceRatio=1.8;const squircleSmooth=parseFloat(properties.get("--squircle-smooth")*smoothRatio);const individualRadiiProps=SquircleClass.inputProperties.slice(1,5);let squircleRadii=individualRadiiProps.map(prop=>{const value=properties.get(prop);return value?parseInt(value,10)*distanceRatio:NaN});let shorthand_R;if(squircleRadii.some(isNaN)){const radiusRegex=/([0-9]+[a-z%]*)/g;const radius_shorthand=properties.get("--squircle-radius").toString();const matches=radius_shorthand.match(radiusRegex);if(matches){shorthand_R=matches.map(val=>parseInt(val,10)*distanceRatio);while(shorthand_R.length<4){if(shorthand_R.length===1){shorthand_R.push(shorthand_R[0])}else if(shorthand_R.length===2){shorthand_R=[shorthand_R[0],shorthand_R[1],shorthand_R[0],shorthand_R[1]]}else if(shorthand_R.length===3){shorthand_R=[shorthand_R[0],shorthand_R[1],shorthand_R[2],shorthand_R[1]]}}}else{const defaultRadius=squircleRadii.every(isNaN)?8*distanceRatio:0;shorthand_R=[defaultRadius,defaultRadius,defaultRadius,defaultRadius]}}squircleRadii=squircleRadii.map((val,i)=>isNaN(val)?shorthand_R[i]:val);const squrcleOutline=parseFloat(properties.get("--squircle-outline"),10);const squrcleColor=properties.get("--squircle-fill").toString();const isSmooth=()=>{if(typeof properties.get("--squircle-smooth")[0]!=="undefined"){if(squircleSmooth===0){return 1}return squircleSmooth}else{return 10}};const isOutline=()=>{if(squrcleOutline){return squrcleOutline}else{return 0}};const isColor=()=>{if(squrcleColor){return squrcleColor}else{return"#f45"}};const maxRadius=Math.max(...squircleRadii);if(maxRadius<geom.width/2&&maxRadius<geom.height/2){drawSquircle(ctx,geom,squircleRadii,isSmooth(),isOutline(),isColor())}else{const minRadius=Math.min(geom.width/2,geom.height/2);drawSquircle(ctx,geom,squircleRadii.map(()=>minRadius),isSmooth(),isOutline(),isColor())}}}if(typeof registerPaint!=="undefined"){registerPaint("squircle",SquircleClass)}
+  `;
+  const blob = new Blob([workletCode], { type: 'application/javascript' });
+  const blobURL = URL.createObjectURL(blob);
+  CSS.paintWorklet.addModule(blobURL);
+}
+</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>簡易リッチエディタ（最小版）</title>
+  <style>
+    :root{
+          --md-sys-color-primary: rgb(65 95 145);
+  --md-sys-color-surface-tint: rgb(65 95 145);
+  --md-sys-color-on-primary: rgb(255 255 255);
+  --md-sys-color-primary-container: rgb(214 227 255);
+  --md-sys-color-on-primary-container: rgb(40 71 119);
+  --md-sys-color-secondary: rgb(86 95 113);
+  --md-sys-color-on-secondary: rgb(255 255 255);
+  --md-sys-color-secondary-container: rgb(218 226 249);
+  --md-sys-color-on-secondary-container: rgb(62 71 89);
+  --md-sys-color-tertiary: rgb(112 85 117);
+  --md-sys-color-on-tertiary: rgb(255 255 255);
+  --md-sys-color-tertiary-container: rgb(250 216 253);
+  --md-sys-color-on-tertiary-container: rgb(87 62 92);
+  --md-sys-color-error: rgb(186 26 26);
+  --md-sys-color-on-error: rgb(255 255 255);
+  --md-sys-color-error-container: rgb(255 218 214);
+  --md-sys-color-on-error-container: rgb(147 0 10);
+  --md-sys-color-background: rgb(249 249 255);
+  --md-sys-color-on-background: rgb(25 28 32);
+  --md-sys-color-surface: rgb(249 249 255);
+  --md-sys-color-on-surface: rgb(25 28 32);
+  --md-sys-color-surface-variant: rgb(224 226 236);
+  --md-sys-color-on-surface-variant: rgb(68 71 78);
+  --md-sys-color-outline: rgb(116 119 127);
+  --md-sys-color-outline-variant: rgb(196 198 208);
+  --md-sys-color-shadow: rgb(0 0 0);
+  --md-sys-color-scrim: rgb(0 0 0);
+  --md-sys-color-inverse-surface: rgb(46 48 54);
+  --md-sys-color-inverse-on-surface: rgb(240 240 247);
+  --md-sys-color-inverse-primary: rgb(170 199 255);
+  --md-sys-color-primary-fixed: rgb(214 227 255);
+  --md-sys-color-on-primary-fixed: rgb(0 27 62);
+  --md-sys-color-primary-fixed-dim: rgb(170 199 255);
+  --md-sys-color-on-primary-fixed-variant: rgb(40 71 119);
+  --md-sys-color-secondary-fixed: rgb(218 226 249);
+  --md-sys-color-on-secondary-fixed: rgb(19 28 43);
+  --md-sys-color-secondary-fixed-dim: rgb(190 198 220);
+  --md-sys-color-on-secondary-fixed-variant: rgb(62 71 89);
+  --md-sys-color-tertiary-fixed: rgb(250 216 253);
+  --md-sys-color-on-tertiary-fixed: rgb(40 19 46);
+  --md-sys-color-tertiary-fixed-dim: rgb(221 188 224);
+  --md-sys-color-on-tertiary-fixed-variant: rgb(87 62 92);
+  --md-sys-color-surface-dim: rgb(217 217 224);
+  --md-sys-color-surface-bright: rgb(249 249 255);
+  --md-sys-color-surface-container-lowest: rgb(255 255 255);
+  --md-sys-color-surface-container-low: rgb(243 243 250);
+  --md-sys-color-surface-container: rgb(237 237 244);
+  --md-sys-color-surface-container-high: rgb(231 232 238);
+  --md-sys-color-surface-container-highest: rgb(226 226 233);
+    }
+    </style>
+  <style>
+    *{
+        font-family: "Noto Sans JP", sans-serif;
+    }
+.material-symbols-outlined {
+    font-size:20px;
+    position:relative;
+    top:2px;
+  font-variation-settings:
+  'FILL' 0,
+  'wght' 300,
+  'GRAD' 0,
+  'opsz' 20
+}
+    body {
+  font-family: system-ui, -apple-system, 'Noto Sans JP', sans-serif;
+  margin: 0px;
+  color: #111;
+  background: var(--md-sys-color-surface-container);
+}
+a{
+    color:var(--md-sys-color-primary);
+}
+.toolbar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  position:fixed;
+ background: var(--md-sys-color-surface);
+top:0;
+left:0;
+width:100vw;
+padding: 16px;
+z-index:1;
+}
+
+button,
+select {
+  border:none;
+  mask-image: paint(squircle);
+    --squircle-radius: 100px;
+    --squircle-smooth: 0.25;
+  border-radius: 4px;
+  background: #EBEBEB;
+  cursor: pointer;
+  height:32px;
+  min-width:45px;
+  outline:none;
+}
+
+.editor {
+  min-height: 160px;
+  background: var(--md-sys-color-surface);
+  outline:none;
+  padding: 24px;
+  border-radius: 4px;
+  mask-image: paint(squircle);
+    --squircle-radius: 40px;
+    --squircle-smooth: 1;
+    margin:24px;
+    margin-top:90px;
+}
+
+.editor:empty:before {
+  content: attr(data-placeholder);
+  color: #999
+}
+
+.status {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #444
+}
+
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    
+<svg class="logo" width="44" height="44" viewBox="0 0 31 31" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="31" height="10.3333" rx="5.16667" fill="#313E6D"/>
+<rect y="10.3333" width="31" height="10.3333" rx="5.16667" fill="#9BA5C1"/>
+<rect y="20.6667" width="31" height="10.3333" rx="5.16667" fill="#DFE3EE"/>
+<rect x="20.6667" y="20.6667" width="10.3333" height="10.3333" rx="5.16667" fill="#0037FF"/>
+</svg>
+
+
+<style>
+  #blockType {
+    position: absolute;
+    opacity: 0;
+    inset: 0;       /* 親要素いっぱいに広げる */
+    cursor: pointer;
+  }
+
+  .wrapper {
+    position: relative;
+    display: inline-block;
+  }
+</style>
+
+<div class="wrapper">
+  <!-- labelでボタン風にする -->
+  <label>
+    <md-filled-button>
+      <span id="menu-label">本文</span>
+      <md-ripple></md-ripple>
+    </md-filled-button>
+    <!-- 実態は select -->
+    <select id="blockType">
+      <option value="p">本文</option>
+      <option value="h1">見出し1</option>
+      <option value="h2">見出し2</option>
+    </select>
+  </label>
+</div>
+
+<script type="module">
+  const selectElement = document.querySelector('#blockType');
+  const menuLabel = document.querySelector('#menu-label');
+
+  // 選択変更をラベルに反映
+  selectElement.addEventListener('change', () => {
+    const option = selectElement.selectedOptions[0];
+    menuLabel.textContent = option.textContent;
+  });
+</script>
+
+
+    <md-filled-tonal-button id="btnBold" title="太字 (Ctrl/Cmd+B)">
+        <span class="material-symbols-outlined">
+format_bold
+</span>
+    </md-filled-tonal-button>
+
+<md-filled-tonal-button id="btnItalic" title="斜体 (Ctrl/Cmd+I)">
+        <span class="material-symbols-outlined">
+format_italic
+</span>
+    </md-filled-tonal-button>
+
+<md-filled-tonal-button id="btnLink" title="リンク (Ctrl/Cmd+K)">
+        <span class="material-symbols-outlined">
+add_link
+</span>
+    </md-filled-tonal-button>
+
+<md-filled-tonal-button id="btnClear" title="全て削除">
+        <span class="material-symbols-outlined">
+delete_forever
+</span>
+    </md-filled-tonal-button>
+
+  </div>
+
+  <div id="editor" class="editor" contenteditable="true" data-placeholder="ここに入力してください（見出し、太字、リンクなど）。"></div>
+  <div class="status" id="status">文字数: 0</div>
+
+  <!-- リンク挿入用モーダル -->
+  <md-dialog id="linkModal">
+    <div slot="headline">リンクの追加</div>
+    <form slot="content" method="dialog" id="linkForm">
+
+      <md-filled-text-field label="リンク先URL" id="modalUrl" value="Value">
+</md-filled-text-field>
+
+  <md-filled-text-field label="表示テキスト" id="modalText" value="Value">
+</md-filled-text-field>
+
+<md-filled-button id="modalCancel" value="default">キャンセル</md-filled-button>
+<md-filled-button id="modaOk" value="default">追加</md-filled-button>
+
+    </form>
+  </md-dialog>
+  <!-- リンクチップ -->
+  <div id="linkChip" style="display:none;position:absolute;z-index:1000;background:#fff;border:1px solid #ccc;padding:6px 12px;border-radius:6px;box-shadow:0 2px 8px #0002;font-size:14px;gap:8px;align-items:center;">
+    <button id="chipEdit" style="margin-left:0;">編集</button>
+    <button id="chipGo" style="margin-left:8px;">アクセス</button>
+  </div>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const status = document.getElementById('status');
+    const STORAGE_KEY = 'simple_rich_editor_min_v1';
+    const linkModal = document.getElementById('linkModal');
+    const linkForm = document.getElementById('linkForm');
+    const modalUrl = document.getElementById('modalUrl');
+    const modalText = document.getElementById('modalText');
+    const modalOk = document.getElementById('modalOk');
+    const linkChip = document.getElementById('linkChip');
+    const chipEdit = document.getElementById('chipEdit');
+    const chipGo = document.getElementById('chipGo');
+    let chipTarget = null;
+    let savedRange = null;
+
+    function save(){ try{ localStorage.setItem(STORAGE_KEY, editor.innerHTML); }catch(e){} }
+    function load(){ const s = localStorage.getItem(STORAGE_KEY); if(s) editor.innerHTML = s; }
+
+    function updateStatus(){ const t = (editor.innerText || '').trim(); status.textContent = '文字数: ' + t.length; }
+
+    function exec(cmd, val=null){ document.execCommand(cmd, false, val); editor.focus(); updateStatus(); save(); }
+
+    document.getElementById('btnBold').onclick = ()=> exec('bold');
+    document.getElementById('btnItalic').onclick = ()=> exec('italic');
+    document.getElementById('btnClear').onclick = ()=>{
+      if(confirm('内容を消去しますか？')){ editor.innerHTML = ''; save(); updateStatus(); }
+    };
+
+    document.getElementById('blockType').addEventListener('change', (e)=>{
+      const v = e.target.value;
+      if(v === 'p') exec('formatBlock','p');
+      else exec('formatBlock', v);
+    });
+
+    // リンク追加ボタン
+    document.getElementById('btnLink').onclick = ()=>{
+      const sel = window.getSelection();
+      let selectedText = sel && !sel.isCollapsed ? sel.toString() : '';
+      modalUrl.value = '';
+      modalText.value = selectedText;
+      // 選択範囲を保存
+      if(sel && sel.rangeCount > 0) {
+        savedRange = sel.getRangeAt(0).cloneRange();
+      } else {
+        savedRange = null;
+      }
+      linkModal.setAttribute('open', '');
+      setTimeout(()=>modalUrl.focus(), 50);
+      linkForm.onsubmit = (ev)=>{
+        ev.preventDefault();
+        linkModal.removeAttribute('open');
+        const url = modalUrl.value;
+        let text = modalText.value || url;
+        if(!url) return;
+        // モーダル閉じた後に選択範囲を復元
+        if(savedRange){
+          const sel2 = window.getSelection();
+          sel2.removeAllRanges();
+          sel2.addRange(savedRange);
+          savedRange.deleteContents();
+          const a = document.createElement('a');
+          a.href = url;
+          a.textContent = text;
+          a.target = '_blank';
+          savedRange.insertNode(a);
+          savedRange.setStartAfter(a);
+          savedRange.collapse(true);
+          sel2.removeAllRanges();
+          sel2.addRange(savedRange);
+          save(); updateStatus();
+        }
+        savedRange = null;
+      };
+    };
+
+    document.getElementById('modalCancel').onclick = () => {
+      linkModal.removeAttribute('open');
+      savedRange = null;
+    };
+
+    window.addEventListener('keydown', (e)=>{
+      const mod = e.ctrlKey || e.metaKey;
+      if(mod && e.key.toLowerCase() === 'b'){ e.preventDefault(); exec('bold'); }
+      if(mod && e.key.toLowerCase() === 'i'){ e.preventDefault(); exec('italic'); }
+      if(mod && e.key.toLowerCase() === 'k'){ e.preventDefault(); document.getElementById('btnLink').click(); }
+    });
+
+    editor.addEventListener('paste', (ev)=>{
+      ev.preventDefault();
+      const text = (ev.clipboardData || window.clipboardData).getData('text/plain');
+      document.execCommand('insertText', false, text);
+      save(); updateStatus();
+    });
+
+    editor.addEventListener('input', ()=>{ updateStatus(); save(); });
+
+    // aタグにフォーカスした時にチップを表示
+    function isLinkElement(el) {
+      return el && el.tagName === 'A';
+    }
+    editor.addEventListener('click', (e)=>{
+      if(isLinkElement(e.target)){
+        showLinkChip(e.target);
+      } else {
+        hideLinkChip();
+      }
+    });
+    editor.addEventListener('keyup', (e)=>{
+      const sel = window.getSelection();
+      if(sel && sel.anchorNode) {
+        let el = sel.anchorNode.nodeType === 1 ? sel.anchorNode : sel.anchorNode.parentElement;
+        if(isLinkElement(el)){
+          showLinkChip(el);
+          return;
+        }
+      }
+      hideLinkChip();
+    });
+    document.addEventListener('click', (e)=>{
+      if(!linkChip.contains(e.target) && (!editor.contains(e.target) || !isLinkElement(e.target))){
+        hideLinkChip();
+      }
+    });
+    function showLinkChip(a){
+      chipTarget = a;
+      chipGo.onclick = () => { window.open(a.href, '_blank'); };
+      const rect = a.getBoundingClientRect();
+      linkChip.style.display = 'flex';
+      linkChip.style.top = (window.scrollY + rect.bottom + 4) + 'px';
+      linkChip.style.left = (window.scrollX + rect.left) + 'px';
+    }
+    function hideLinkChip(){
+      linkChip.style.display = 'none';
+      chipTarget = null;
+    }
+    chipEdit.onclick = ()=>{
+      if(!chipTarget) return;
+      modalUrl.value = chipTarget.href;
+      modalText.value = chipTarget.textContent;
+      linkModal.setAttribute('open', '');
+      setTimeout(()=>modalUrl.focus(), 50);
+      linkForm.onsubmit = (ev)=>{
+        ev.preventDefault();
+        linkModal.removeAttribute('open');
+        const url = modalUrl.value;
+        let text = modalText.value || url;
+        if(!url) return;
+        chipTarget.href = url;
+        chipTarget.textContent = text;
+        chipTarget.target = '_blank';
+        save(); updateStatus();
+        hideLinkChip();
+      };
+    };
+
+    load(); updateStatus();
+    setInterval(save, 3000);
+  </script>
+</body>
+</html>

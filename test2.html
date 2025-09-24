@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<title>Sheets Sync — Silent then Interactive</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 20px; }
+  #controls { display:flex; gap:8px; margin-bottom:12px; align-items:center; }
+  input[type="text"]{ width:60%; padding:8px; font-size:16px; }
+  button{ padding:8px 12px; font-size:14px; }
+  pre{ background:#f5f5f5; padding:10px; max-height:320px; overflow:auto; white-space:pre-wrap; }
+  .small { font-size:12px; color:#666; }
+</style>
+</head>
+<body>
+  <h2>Sheets 自動同期 — サイレント→ポップアップ戦略</h2>
+
+  <div id="controls">
+    <input id="myText" type="text" placeholder="ここに入力すると 1秒毎に A1 に同期されます">
+    <button id="loginBtn">Googleでログイン（Firebase）</button>
+    <button id="grantBtn" disabled>Grant Sheets Access</button>
+    <div id="status">未ログイン</div>
+  </div>
+
+  <div class="small">※ 初回に権限が無ければポップアップで同意を求めます（ワンクリックで完結）</div>
+
+  <h4>ログ</h4>
+  <pre id="log"></pre>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
+
+// ---------- あなたの設定 ----------
+const CLIENT_ID = "163996109972-1gthhh44m0e9gflmnkuba91fv41ncqbe.apps.googleusercontent.com";
+const SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile";
+const firebaseConfig = {
+  apiKey: "AIzaSyAYSzOAmqY_IJCEUNb-cJNQfp4AKt93a_A",
+  authDomain: "couud-dashboard.firebaseapp.com",
+  databaseURL: "https://couud-dashboard-default-rtdb.firebaseio.com",
+  projectId: "couud-dashboard",
+  storageBucket: "couud-dashboard.appspot.com",
+  messagingSenderId: "163996109972",
+  appId: "1:163996109972:web:e806be3a622a4da2a33881",
+  measurementId: "G-XCX2C68FM6"
+};
+// ---------------------------------------
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const inputEl = document.getElementById("myText");
+const loginBtn = document.getElementById("loginBtn");
+const grantBtn = document.getElementById("grantBtn");
+const statusEl = document.getElementById("status");
+const logEl = document.getElementById("log");
+function log(...args){ console.log(...args); logEl.textContent += args.map(a=>typeof a==='object'?JSON.stringify(a):String(a)).join(' ') + "\n"; logEl.scrollTop = logEl.scrollHeight; }
+
+// state
+let tokenClient = null;
+let gapiInited = false;
+let gisInited = false;
+let lastAccessToken = null;
+let accessTokenExpiresAt = 0;
+let tokenClientResolver = null;
+
+let currentUser = null;
+let spreadsheetId = null;
+let primarySheetTitle = null;
+let syncIntervalId = null;
+
+// load gapi and GIS (callbacks defined below)
+function gapiLoadedLocal(){
+  log("gapi loaded -> init client");
+  gapi.load('client', async () => {
+    try{
+      await gapi.client.init({
+        discoveryDocs: [
+          "https://sheets.googleapis.com/$discovery/rest?version=v4",
+          "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"
+        ]
+      });
+      gapiInited = true;
+      log("gapi.client initialized");
+    }catch(e){
+      log("gapi.client.init error:", e);
+    }
+  });
+}
+function gisLoadedLocal(){
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (resp) => {
+      if(tokenClientResolver){
+        tokenClientResolver(resp);
+        tokenClientResolver = null;
+      } else {
+        if(!resp.error){
+          lastAccessToken = resp.access_token;
+          accessTokenExpiresAt = Date.now() + (resp.expires_in?resp.expires_in*1000:3600*1000);
+          if(gapiInited && gapi.client) gapi.client.setToken({ access_token: lastAccessToken });
+          log("GIS callback: token set");
+        } else {
+          log("GIS callback error:", resp);
+        }
+      }
+    }
+  });
+  gisInited = true;
+  log("GIS initialized");
+}
+(function loadLibs(){
+  const s1 = document.createElement('script');
+  s1.src = "https://apis.google.com/js/api.js"; s1.async = true; s1.defer = true; s1.onload = gapiLoadedLocal;
+  document.head.appendChild(s1);
+  const s2 = document.createElement('script');
+  s2.src = "https://accounts.google.com/gsi/client"; s2.async = true; s2.defer = true; s2.onload = gisLoadedLocal;
+  document.head.appendChild(s2);
+})();
+
+// token helpers
+function requestAccessTokenSilent(){
+  if(!tokenClient) return Promise.reject(new Error("tokenClient not initialized"));
+  return new Promise((resolve,reject)=>{
+    tokenClientResolver = (resp)=>{ if(resp.error) reject(resp); else { lastAccessToken = resp.access_token; accessTokenExpiresAt = Date.now() + (resp.expires_in?resp.expires_in*1000:3600*1000); if(gapiInited && gapi.client) gapi.client.setToken({ access_token: lastAccessToken }); resolve(resp); } };
+    try{ tokenClient.requestAccessToken({ prompt: 'none' }); }catch(e){ tokenClientResolver = null; reject(e); }
+  });
+}
+function requestAccessTokenInteractive(){
+  if(!tokenClient) return Promise.reject(new Error("tokenClient not initialized"));
+  return new Promise((resolve,reject)=>{
+    tokenClientResolver = (resp)=>{ if(resp.error) reject(resp); else { lastAccessToken = resp.access_token; accessTokenExpiresAt = Date.now() + (resp.expires_in?resp.expires_in*1000:3600*1000); if(gapiInited && gapi.client) gapi.client.setToken({ access_token: lastAccessToken }); resolve(resp); } };
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  });
+}
+async function ensureAccessToken(){
+  if(lastAccessToken && Date.now() < accessTokenExpiresAt - 10000) return lastAccessToken;
+  if(!tokenClient) throw new Error("tokenClient not initialized");
+  try{
+    const resp = await requestAccessTokenSilent();
+    return resp.access_token;
+  }catch(e){
+    throw e;
+  }
+}
+
+// utility: get primary sheet title
+async function fetchPrimarySheetTitle(sid){
+  if(!gapiInited) throw new Error("gapi not ready");
+  const res = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: sid, fields: "sheets(properties(sheetId,title))" });
+  const sheets = res.result.sheets || [];
+  if(sheets.length > 0) return sheets[0].properties.title;
+  return null;
+}
+
+// create spreadsheet (requires valid token)
+async function createSpreadsheet(uid){
+  try{ await ensureAccessToken(); }catch(e){ log("silent token failed for create"); throw e; }
+  const res = await gapi.client.drive.files.create({ resource: { name: "同期用スプレッドシート", mimeType: "application/vnd.google-apps.spreadsheet" }, fields: "id" });
+  const sid = res.result.id;
+  await setDoc(doc(db, "user_sheets", uid), { spreadsheetId: sid, createdAt: new Date().toISOString() });
+  log("created and saved sheetId:", sid);
+  return sid;
+}
+
+// load A1 and start sync (uses primary sheet title)
+async function loadA1AndStart(){
+  if(!spreadsheetId) { log("no spreadsheetId"); return; }
+  try{ primarySheetTitle = await fetchPrimarySheetTitle(spreadsheetId); log("primary sheet title:", primarySheetTitle); }catch(e){ log("fetch sheet title failed:", e); }
+  const range = primarySheetTitle ? `'${primarySheetTitle.replace(/'/g,"''")}'!A1` : "A1";
+  try{ await ensureAccessToken(); }catch(e){ log("silent token failed for read A1; click Grant Sheets Access"); return; }
+  try{
+    const sheetRes = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId, range });
+    const v = (sheetRes.result.values && sheetRes.result.values[0] && sheetRes.result.values[0][0]) || "";
+    inputEl.value = v;
+    log("A1 loaded:", v);
+  }catch(err){
+    log("A1 read failed:", err);
+  }
+  startSync(range);
+}
+
+function startSync(range){
+  if(syncIntervalId) return;
+  syncIntervalId = setInterval(async ()=>{
+    if(!spreadsheetId) return;
+    try{ await ensureAccessToken(); }catch(e){ log("sync: silent token unavailable; click Grant Sheets Access"); return; }
+    try{
+      const text = inputEl.value;
+      const res = await gapi.client.sheets.spreadsheets.values.update({ spreadsheetId, range, valueInputOption: "RAW", resource: { values: [[text]] } });
+      log(`A1 update OK — updatedRange=${res.result.updatedRange} updatedCells=${res.result.updatedCells || "?"}`);
+    }catch(err){
+      log("A1 update failed:", err);
+    }
+  }, 1000);
+  log("sync loop started (range="+range+")");
+}
+
+// --- main login flow (user click) ---
+// Strategy: signInWithPopup -> try to use popup result token -> try silent (prompt:none) -> if silent fails, run interactive consent (prompt:consent) inside same click flow
+loginBtn.addEventListener("click", async ()=>{
+  const provider = new GoogleAuthProvider();
+  provider.addScope("https://www.googleapis.com/auth/spreadsheets");
+  provider.addScope("https://www.googleapis.com/auth/drive.file");
+
+  try{
+    // 1) sign in via Firebase popup (user gesture)
+    const result = await signInWithPopup(auth, provider);
+    currentUser = result.user;
+    statusEl.textContent = `ログイン済み: ${currentUser.displayName || currentUser.email}`;
+    log("signed in:", currentUser.uid, currentUser.email);
+
+    // 2) try to use oauth token returned by firebase (if any)
+    const oauthTok = result._tokenResponse && result._tokenResponse.oauthAccessToken;
+    if(oauthTok && gapiInited){
+      lastAccessToken = oauthTok;
+      accessTokenExpiresAt = Date.now() + ((result._tokenResponse.expires_in || 3600) * 1000);
+      gapi.client.setToken({ access_token: lastAccessToken });
+      log("gapi token set from signInWithPopup result");
+    } else {
+      log("no oauth token in signInWithPopup result, will try silent then interactive token fetch");
+    }
+
+    // 3) Try silent (prompt:none) — success if user already consented
+    let gotToken = false;
+    try{
+      await ensureAccessToken(); // tries silent
+      gotToken = true;
+      log("silent token acquired");
+    }catch(e){
+      log("silent token not available:", e);
+    }
+
+    // 4) If silent failed, request interactive token (still within user click, so popup allowed)
+    if(!gotToken){
+      try{
+        await requestAccessTokenInteractive();
+        gotToken = true;
+        log("interactive token obtained (consent popup)");
+      }catch(e){
+        log("interactive token request failed or blocked:", e);
+        // enable Grant button so user can try manually (or try again)
+        grantBtn.disabled = false;
+      }
+    } else {
+      grantBtn.disabled = false;
+    }
+
+    // 5) With token available (if we have it), proceed to Firestore check / create
+    // Wait for gapi ready too
+    const waitForGapi = new Promise(res=>{
+      const t0 = Date.now();
+      const iv = setInterval(()=>{ if(gapiInited){ clearInterval(iv); res(true); } if(Date.now()-t0>3000){ clearInterval(iv); res(false); } },100);
+    });
+    const gapiReady = await waitForGapi;
+
+    // Firestore check
+    const docRef = doc(db, "user_sheets", currentUser.uid);
+    const docSnap = await getDoc(docRef);
+    if(docSnap.exists()){
+      spreadsheetId = docSnap.data().spreadsheetId;
+      log("found spreadsheetId in Firestore:", spreadsheetId);
+    } else {
+      if(gotToken && gapiReady){
+        try{
+          spreadsheetId = await createSpreadsheet(currentUser.uid);
+        }catch(e){
+          log("create sheet failed after interactive token:", e);
+          return;
+        }
+      } else {
+        log("Cannot auto-create sheet: no token or gapi not ready. Click Grant Sheets Access to continue.");
+        return;
+      }
+    }
+
+    // load A1 and start sync
+    await loadA1AndStart();
+
+  }catch(err){
+    log("login flow error:", err);
+    alert("ログインに失敗しました。コンソールログを確認してください。");
+  }
+});
+
+// Grant button: when user clicks separately (e.g. restore case), do interactive token fetch and continue
+grantBtn.addEventListener("click", async ()=>{
+  try{
+    await requestAccessTokenInteractive();
+    log("interactive token acquired via Grant button");
+    // if signed in & no spreadsheet, create; otherwise load
+    const user = currentUser || auth.currentUser;
+    if(!user){ log("No signed-in user — please login first"); return; }
+    if(!spreadsheetId){
+      try{ spreadsheetId = await createSpreadsheet(user.uid); }catch(e){ log("create after grant failed:", e); return; }
+    }
+    await loadA1AndStart();
+  }catch(e){ log("Grant failed:", e); }
+});
+
+// restore on page load if auth session exists (no popup here)
+onAuthStateChanged(auth, async (user)=>{
+  if(user){
+    currentUser = user;
+    statusEl.textContent = `ログイン済み: ${user.displayName || user.email}`;
+    grantBtn.disabled = false;
+    log("onAuthStateChanged: user present", user.uid);
+    try{
+      const docRef = doc(db, "user_sheets", user.uid);
+      const docSnap = await getDoc(docRef);
+      if(docSnap.exists()){
+        spreadsheetId = docSnap.data().spreadsheetId;
+        log("restored spreadsheetId:", spreadsheetId);
+        // try silent token & load (no interactive popup on restore)
+        try{ await ensureAccessToken(); await loadA1AndStart(); }
+        catch(e){ log("silent token not available on restore — click Grant Sheets Access"); }
+      } else {
+        log("No saved spreadsheet; click Grant Sheets Access to create");
+      }
+    }catch(e){ log("restore error:", e); }
+  } else {
+    statusEl.textContent = "未ログイン";
+    currentUser = null;
+    spreadsheetId = null;
+    primarySheetTitle = null;
+    if(syncIntervalId){ clearInterval(syncIntervalId); syncIntervalId = null; }
+    log("signed out or no session");
+  }
+});
+
+</script>
+</body>
+</html>
