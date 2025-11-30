@@ -1,0 +1,1133 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>簡易リッチエディタ（アニメ：toolbar/editor を expander 内に移動）</title>
+
+<script type="importmap">{"imports": {"@material/web/": "https://esm.run/@material/web/"}}</script>
+<script type="module">
+import '@material/web/all.js';
+import {styles as typescaleStyles} from '@material/web/typography/md-typescale-styles.js';
+document.adoptedStyleSheets.push(typescaleStyles.styleSheet);
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+2:wght@100..900&display=swap" rel="stylesheet">
+
+<script>
+if ("paintWorklet" in CSS) {
+const workletCode = `
+const drawSquircle=(ctx,geom,radii,smooth,lineWidth,color)=>{const defaultFill=color;const lineWidthOffset=lineWidth/2;ctx.beginPath();ctx.lineTo(radii[0],lineWidthOffset);ctx.lineTo(geom.width-radii[1],lineWidthOffset);ctx.bezierCurveTo(geom.width-radii[1]/smooth,lineWidthOffset,geom.width-lineWidthOffset,radii[1]/smooth,geom.width-lineWidthOffset,radii[1]);ctx.lineTo(geom.width-lineWidthOffset,geom.height-radii[2]);ctx.bezierCurveTo(geom.width-lineWidthOffset,geom.height-radii[2]/smooth,geom.width-radii[2]/smooth,geom.height-lineWidthOffset,geom.width-radii[2],geom.height-lineWidthOffset);ctx.lineTo(radii[3],geom.height-lineWidthOffset);ctx.bezierCurveTo(radii[3]/smooth,geom.height-lineWidthOffset,lineWidthOffset,geom.height-radii[3]/smooth,lineWidthOffset,geom.height-radii[3]);ctx.lineTo(lineWidthOffset,radii[0]);ctx.bezierCurveTo(lineWidthOffset,radii[0]/smooth,radii[0]/smooth,lineWidthOffset,radii[0],lineWidthOffset);ctx.closePath();if(lineWidth){ctx.strokeStyle=defaultFill;ctx.lineWidth=lineWidth;ctx.stroke()}else{ctx.fillStyle=defaultFill;ctx.fill()}};class SquircleClass{static get contextOptions(){return{alpha:true}}static get inputProperties(){return["--squircle-radius","--squircle-radius-top-left","--squircle-radius-top-right","--squircle-radius-bottom-right","--squircle-radius-bottom-left","--squircle-smooth","--squircle-outline","--squircle-fill"]}paint(ctx,geom,properties){const smoothRatio=10;const distanceRatio=1.8;const squircleSmooth=parseFloat(properties.get("--squircle-smooth")*smoothRatio);const individualRadiiProps=SquircleClass.inputProperties.slice(1,5);let squircleRadii=individualRadiiProps.map(prop=>{const value=properties.get(prop);return value?parseInt(value,10)*distanceRatio:NaN});let shorthand_R;if(squircleRadii.some(isNaN)){const radiusRegex=/([0-9]+[a-z%]*)/g;const radius_shorthand=properties.get("--squircle-radius").toString();const matches=radius_shorthand.match(radiusRegex);if(matches){shorthand_R=matches.map(val=>parseInt(val,10)*distanceRatio);while(shorthand_R.length<4){if(shorthand_R.length===1){shorthand_R.push(shorthand_R[0])}else if(shorthand_R.length===2){shorthand_R=[shorthand_R[0],shorthand_R[1],shorthand_R[0],shorthand_R[1]]}else if(shorthand_R.length===3){shorthand_R=[shorthand_R[0],shorthand_R[1],shorthand_R[2],shorthand_R[1]]}}}else{const defaultRadius=squircleRadii.every(isNaN)?8*distanceRatio:0;shorthand_R=[defaultRadius,defaultRadius,defaultRadius,defaultRadius]}}squircleRadii=squircleRadii.map((val,i)=>isNaN(val)?shorthand_R[i]:val);const squrcleOutline=parseFloat(properties.get("--squircle-outline"),10);const squrcleColor=properties.get("--squircle-fill").toString();const isSmooth=()=>{if(typeof properties.get("--squircle-smooth")[0]!=="undefined"){if(squircleSmooth===0){return 1}return squircleSmooth}else{return 10}};const isOutline=()=>{if(squrcleOutline){return squrcleOutline}else{return 0}};const isColor=()=>{if(squrcleColor){return squrcleColor}else{return"#f45"}};const maxRadius=Math.max(...squircleRadii);if(maxRadius<geom.width/2&&maxRadius<geom.height/2){drawSquircle(ctx,geom,squircleRadii,isSmooth(),isOutline(),isColor())}else{const minRadius=Math.min(geom.width/2,geom.height/2);drawSquircle(ctx,geom,squircleRadii.map(()=>minRadius),isSmooth(),isOutline(),isColor())}}}if(typeof registerPaint!=="undefined"){registerPaint("squircle",SquircleClass)}`;
+const blob = new Blob([workletCode], { type: 'application/javascript' });
+const blobURL = URL.createObjectURL(blob);
+CSS.paintWorklet.addModule(blobURL);
+}
+</script>
+
+<style>
+@view-transition { navigation: auto; }
+:root{--md-sys-color-primary: #0037FF;--md-sys-color-surface-tint: #0037FF;--md-sys-color-on-primary: rgb(255 255 255);--md-sys-color-background: #F2F2F2;--md-sys-color-on-background: rgb(25 28 32);--md-sys-color-surface: rgb(255 255 255);--md-sys-color-on-surface: rgb(25 28 32);--md-sys-color-outline-variant: rgb(200 200 210);--md-dialog-container-color:#fff;}
+*{font-family:"M PLUS 2", sans-serif;}
+.material-symbols-outlined{font-size:24px;position:relative;top:2px;font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24}
+
+/* 全てのスクロールバーを非表示にするスタイル */
+body {
+    margin: 0;
+    color: #111;
+    background: var(--md-sys-color-background);
+    /* ページのメインスクロールバーを非表示 (IE/Edge/Firefox/Chrome/Safari対応) */
+    overflow: hidden !important;
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+body::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari, Opera */
+}
+
+/* スクロールが必要な要素（セレクター、エディタ）のスクロールバーを非表示 */
+.selector-content, #previewContent, #sreExpander .inner {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.selector-content::-webkit-scrollbar, #previewContent::-webkit-scrollbar, #sreExpander .inner::-webkit-scrollbar {
+    display: none;
+}
+/* Expander展開時、inner内のコンテンツのスクロールを許可するが、スクロールバーは非表示 */
+#sreExpander .inner { 
+    overflow-y: auto !important; 
+}
+.editor {
+    /* エディタの内容が溢れた場合もスクロールバーは非表示（隠れた部分を許可） */
+    overflow-y: hidden;
+    min-height:160px;
+    background:var(--md-sys-color-surface);
+    outline:none;
+    padding:32px 48px;
+    margin:24px;
+    margin-top:100px;
+    mask-image:paint(squircle);
+    --squircle-radius:40px;
+    --squircle-smooth:0.7
+}
+
+
+/* その他のスタイル */
+.toolbar{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;position:fixed;background:var(--md-sys-color-surface);top:0;left:0;width:100vw;padding:16px 24px;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,0.1)}
+.editor:empty:before{content:attr(data-placeholder);color:#999}
+.status{margin-top:8px;font-size:14px;color:#444}
+.selector{display:flex;flex-direction:column;height:100vh;background:var(--md-sys-color-background)}
+.selector-header{display:flex;align-items:center;padding:24px;border-bottom:1px solid var(--md-sys-color-outline-variant);gap:24px;background:var(--md-sys-color-surface);box-shadow:0 2px 8px rgba(0,0,0,0.08);position:sticky;top:0;z-index:5}
+.selector-header h2{font-weight:500;font-size:28px;color:var(--md-sys-color-on-surface);margin:0;flex-grow:1}
+.selector-content{padding:40px;flex-grow:1;overflow-y:auto;max-width:1400px;width:100%;margin:0 auto}
+#docList{display:flex;flex-wrap:wrap;flex-direction:row;gap:16px}
+.doc-list-container{display:flex;flex-direction:column;margin-bottom:12px;}
+.doc-item-list{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  padding:24px; /* padding: 24px を保持 */
+  background:var(--md-sys-color-surface);
+  border-radius:16px;
+  cursor:pointer;
+  flex-direction:column;
+  /* max-width, width:auto を削除し、JSでpx単位の固定幅を設定 */
+  overflow:hidden;
+  mask-image:paint(squircle);
+  --squircle-radius:32px;
+  --squircle-smooth:0.7;
+  transition:all 0.2s ease-in-out
+}
+.doc-item-list:hover{box-shadow:0 6px 16px rgba(0,0,0,0.1);transform:translateY(-2px)}
+.doc-title{font-size:24px;font-weight:500;color:var(--md-sys-color-on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-meta-info{font-size:14px;color:var(--md-sys-color-on-surface);text-align:right}
+.doc-actions-list{display:flex;gap:8px;justify-content:flex-end;width:100%;margin-top:12px}
+#sreExpander{position:fixed;background:rgb(255,255,255);border-radius:55px;overflow:hidden;z-index:2000;display:none;justify-content:center;align-items:center;opacity:0;pointer-events:none;box-shadow:none}
+#sreExpander .inner { width:100%; height:100%; display:flex; flex-direction:column; }
+#sreExpander h2{color:rgb(19,19,19);padding:2rem}
+.small{font-size:13px;color:#666}
+.logo{cursor:pointer}
+dialog{mask-image:paint(squircle);--squircle-radius:24px;--squircle-smooth:0.7}
+#previewContent{max-height:70vh;overflow-y:auto;padding:0 24px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div id="editorToolbar" class="toolbar" style="display:none;">
+  <svg id="topLogo" class="logo" width="44" height="44" viewBox="0 0 31 31" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="31" height="10.3333" rx="5.16667" fill="#313E6D"/><rect y="10.3333" width="31" height="10.3333" rx="5.16667" fill="#9BA5C1"/><rect y="20.6667" width="31" height="10.3333" rx="5.16667" fill="#DFE3EE"/><rect x="20.6667" y="20.6667" width="10.3333" height="10.3333" rx="5.16667" fill="#0037FF"/></svg>
+  <style>#blockType{position:absolute;opacity:0;inset:0;cursor:pointer}.wrapper{position:relative;display:inline-block}</style>
+  <div class="wrapper">
+    <label>
+      <md-filled-tonal-button style="height:100%"><span id="menu-label">本文</span><md-ripple></md-ripple></md-filled-tonal-button>
+      <select id="blockType"><option value="p">本文</option><option value="h1">見出し1</option><option value="h2">見出し2</option></select>
+    </label>
+  </div>
+  <md-filled-tonal-button id="btnBold" title="太字 (Ctrl/Cmd+B)"><span class="material-symbols-outlined">format_bold</span></md-filled-tonal-button>
+  <md-filled-tonal-button id="btnItalic" title="斜体 (Ctrl/Cmd+I)"><span class="material-symbols-outlined">format_italic</span></md-filled-tonal-button>
+  <md-filled-tonal-button id="btnLink" title="リンク (Ctrl/Cmd+K)"><span class="material-symbols-outlined">add_link</span></md-filled-tonal-button>
+  <md-filled-tonal-button id="btnClear" title="全て削除"><span class="material-symbols-outlined">delete_forever</span></md-filled-tonal-button>
+</div>
+
+<div id="selector" class="selector">
+  <div class="selector-header">
+    <svg class="logo" width="44" height="44" viewBox="0 0 31 31" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="31" height="10.3333" rx="5.16667" fill="#313E6D"/><rect y="10.3333" width="31" height="10.3333" rx="5.16667" fill="#9BA5C1"/><rect y="20.6667" width="31" height="10.3333" rx="5.16667" fill="#DFE3EE"/><rect x="20.6667" y="20.6667" width="10.3333" height="10.3333" rx="5.16667" fill="#0037FF"/></svg>
+    <h2>ドキュメント</h2>
+    <div style="display:flex;gap:12px;align-items:center;">
+      <input id="newTitle" placeholder="新規ドキュメント名"></input>
+      <md-filled-button id="btnCreate" trailing-icon>作成<span slot="trailing-icon" class="material-symbols-outlined">add</span></md-filled-button>
+    </div>
+  </div>
+  <div id="selectorContent" class="selector-content">
+    <h3 style="font-weight:500;margin-top:0;color:var(--md-sys-color-on-surface);font-size:20px;">最近使用したドキュメント</h3>
+    <div id="docList" class="doc-list"></div>
+  </div>
+</div>
+
+<div id="editorWrap" style="display:none">
+  <div id="editor" class="editor" contenteditable="true" data-placeholder="ここに入力してください（見出し、太字、リンクなど）。"></div>
+  <div style="display:flex;gap:12px;align-items:center;margin:24px;margin-top:8px">
+    <div class="status" id="status">文字数: 0</div>
+    <div class="small" id="currentDocInfo"></div>
+  </div>
+</div>
+
+<md-dialog id="linkModal"><div slot="headline">リンクの追加</div><form slot="content" method="dialog" id="linkForm"><md-filled-text-field label="リンク先URL" id="modalUrl" value="Value"></md-filled-text-field><md-filled-text-field label="表示テキスト" id="modalText" value="Value"></md-filled-text-field><md-filled-button id="modalCancel" value="default">キャンセル</md-filled-button><md-filled-button id="modaOk" value="default">追加</md-filled-button></form></md-dialog>
+
+<md-dialog id="previewModal"><div slot="headline" id="previewTitle">ドキュメント プレビュー</div><div slot="content" id="previewContent"></div><div slot="actions"><md-text-button id="previewEditBtn">編集画面へ</md-text-button><md-text-button onclick="document.getElementById('previewModal').removeAttribute('open');">閉じる</md-text-button></div></md-dialog>
+
+<div id="linkChip" style="display:none;position:absolute;z-index:1000;background:#fff;border:1px solid #ccc;padding:6px 12px;border-radius:6px;box-shadow:0 2px 8px #0002;font-size:14px;gap:8px;align-items:center;">
+  <button id="chipEdit" style="margin-left:0;">編集</button><button id="chipGo" style="margin-left:8px;">アクセス</button>
+</div>
+
+<div id="sreExpander" aria-hidden="true"><div class="inner"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+
+<script>
+/* -----------------------------
+   基本変数
+   ----------------------------- */
+const DOCS_KEY = 'my_sre_docs_v1';
+const DOC_CONTENT_PREFIX = 'my_sre_doc_';
+const editor = document.getElementById('editor');
+const status = document.getElementById('status');
+const linkModal = document.getElementById('linkModal');
+const linkForm = document.getElementById('linkForm');
+const modalUrl = document.getElementById('modalUrl');
+const modalText = document.getElementById('modalText');
+const linkChip = document.getElementById('linkChip');
+const chipEdit = document.getElementById('chipEdit');
+const chipGo = document.getElementById('chipGo');
+const topLogo = document.getElementById('topLogo');
+const selector = document.getElementById('selector');
+const selectorContent = document.getElementById('selectorContent'); 
+const docListEl = document.getElementById('docList');
+const btnCreate = document.getElementById('btnCreate');
+const newTitleInput = document.getElementById('newTitle');
+const currentDocInfo = document.getElementById('currentDocInfo');
+const editorWrap = document.getElementById('editorWrap');
+const editorToolbar = document.getElementById('editorToolbar');
+const previewModal = document.getElementById('previewModal');
+const previewTitle = document.getElementById('previewTitle');
+const previewContent = document.getElementById('previewContent');
+const previewEditBtn = document.getElementById('previewEditBtn');
+const expander = document.getElementById('sreExpander');
+const expanderInner = expander.querySelector('.inner');
+
+let docs = {};
+let currentDocId = null;
+let savedRange = null;
+let chipTarget = null;
+
+/* -----------------------------
+   compression helpers
+   ----------------------------- */
+function compressContent(content) {
+  if (!window.pako) return content;
+  const strData = new TextEncoder().encode(content);
+  const compressed = pako.deflate(strData, { level: 9 });
+  return btoa(String.fromCharCode.apply(null, compressed));
+}
+function decompressContent(compressedContent) {
+  if (!window.pako) return compressedContent;
+  try {
+    const binaryString = atob(compressedContent);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+    const decompressed = pako.inflate(bytes, { to: 'string' });
+    return decompressed;
+  } catch (e) {
+    return compressedContent;
+  }
+}
+
+/* -----------------------------
+   storage helpers
+   ----------------------------- */
+function nowTs(){ return new Date().toISOString(); }
+function genId(){ return 'doc-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6); }
+function loadDocs(){ try{ const raw = localStorage.getItem(DOCS_KEY); docs = raw ? JSON.parse(raw) : {}; }catch(e){ console.error('Error loading docs meta:', e); docs = {}; } }
+function saveDocs(){ try{ localStorage.setItem(DOCS_KEY, JSON.stringify(docs)); }catch(e){ console.error('Error saving docs meta:', e); } }
+function docStorageKey(id){ return DOC_CONTENT_PREFIX + id; }
+function createDoc(title){
+  const id = genId();
+  const doc = { id, title: title || '無題', createdAt: nowTs(), updatedAt: nowTs() };
+  docs[id] = doc;
+  saveDocs();
+  localStorage.setItem(docStorageKey(id), JSON.stringify({ content: compressContent('') }));
+  return id;
+}
+function deleteDoc(id){
+  if (!confirm(`ドキュメント「${docs[id].title}」を完全に削除しますか？この操作は元に戻せません。`)) return;
+  delete docs[id];
+  saveDocs();
+  renderSelector();
+  if (currentDocId === id) {
+    showSelector();
+  }
+}
+function listDocs(){ return Object.values(docs).sort((a,b)=> (a.updatedAt < b.updatedAt) ? 1 : -1); }
+
+/* -----------------------------
+   アニメーション共通状態
+   ----------------------------- */
+let originalRect = null;
+let activeOpenElement = null;
+let placeholderEl = null;
+
+/* toolbar/editor を移動するためのプレースホルダ／元のスタイル保存 */
+let toolbarPlaceholder = null;
+let editorPlaceholder = null;
+let originalToolbarStyle = {};
+let originalEditorWrapStyle = {};
+
+/* easing */
+const easingPosOpen = '.49,.9,0,1';
+const easingSizeOpen = '.62,.08,.21,1';
+const easingOpacity = '.5,0,.5,1';
+
+/* -----------------------------
+   move / restore editor into expander
+   ----------------------------- */
+function createPlaceholderForNode(node){
+  const ph = document.createElement('div');
+  ph.style.width = node.offsetWidth + 'px';
+  ph.style.height = node.offsetHeight + 'px';
+  ph.style.display = getComputedStyle(node).display || 'block';
+  node.parentNode.insertBefore(ph, node);
+  return ph;
+}
+
+function moveEditorIntoExpander(){
+  // If already moved, skip
+  if (toolbarPlaceholder || editorPlaceholder) return;
+  // save original inline styles
+  originalToolbarStyle = {
+    position: editorToolbar.style.position || '',
+    top: editorToolbar.style.top || '',
+    left: editorToolbar.style.left || '',
+    width: editorToolbar.style.width || '',
+    zIndex: editorToolbar.style.zIndex || '',
+    margin: editorToolbar.style.margin || '',
+    display: editorToolbar.style.display || ''
+  };
+  originalEditorWrapStyle = {
+    position: editorWrap.style.position || '',
+    width: editorWrap.style.width || '',
+    display: editorWrap.style.display || '',
+    margin: editorWrap.style.margin || ''
+  };
+
+  // placeholders to restore DOM insertion point
+  toolbarPlaceholder = createPlaceholderForNode(editorToolbar);
+  editorPlaceholder = createPlaceholderForNode(editorWrap);
+
+  // move nodes into expander inner
+  expanderInner.appendChild(editorToolbar);
+  expanderInner.appendChild(editorWrap);
+
+  // adjust styles so they render properly inside expander
+  editorToolbar.style.position = 'relative';
+  editorToolbar.style.top = '';
+  editorToolbar.style.left = '';
+  editorToolbar.style.width = '100%';
+  editorToolbar.style.zIndex = 2002;
+  editorToolbar.style.margin = '0';
+  // make toolbar visible inside expander
+  editorToolbar.style.display = 'flex';
+
+  editorWrap.style.position = 'relative';
+  editorWrap.style.width = '100%';
+  editorWrap.style.margin = '0';
+  editorWrap.style.display = 'block';
+}
+
+function restoreEditorFromExpander(){
+  // if not moved, nothing to do
+  if (!toolbarPlaceholder && !editorPlaceholder) return;
+
+  // move back to original positions by replacing placeholders
+  if (toolbarPlaceholder && toolbarPlaceholder.parentNode) {
+    toolbarPlaceholder.parentNode.insertBefore(editorToolbar, toolbarPlaceholder);
+    toolbarPlaceholder.remove();
+  }
+  if (editorPlaceholder && editorPlaceholder.parentNode) {
+    editorPlaceholder.parentNode.insertBefore(editorWrap, editorPlaceholder);
+    editorPlaceholder.remove();
+  }
+
+  // restore saved inline styles
+  editorToolbar.style.position = originalToolbarStyle.position;
+  editorToolbar.style.top = originalToolbarStyle.top;
+  editorToolbar.style.left = originalToolbarStyle.left;
+  editorToolbar.style.width = originalToolbarStyle.width;
+  editorToolbar.style.zIndex = originalToolbarStyle.zIndex;
+  editorToolbar.style.margin = originalToolbarStyle.margin;
+  editorToolbar.style.display = originalToolbarStyle.display || '';
+
+  editorWrap.style.position = originalEditorWrapStyle.position;
+  editorWrap.style.width = originalEditorWrapStyle.width;
+  editorWrap.style.margin = originalEditorWrapStyle.margin;
+  editorWrap.style.display = originalEditorWrapStyle.display || '';
+
+  toolbarPlaceholder = null;
+  editorPlaceholder = null;
+  originalToolbarStyle = {};
+  originalEditorWrapStyle = {};
+}
+
+/* -----------------------------
+   element fix / placeholder (クリックしたカード固定化)
+   ----------------------------- */
+function createPlaceholderFor(el, rect){
+  const ph = document.createElement('div');
+  ph.style.width = rect.width + 'px';
+  ph.style.height = rect.height + 'px';
+  ph.style.margin = getComputedStyle(el).margin || '0';
+  el.parentNode.insertBefore(ph, el);
+  return ph;
+}
+
+function fixElement(el){
+  const rect = el.getBoundingClientRect();
+  
+  // 修正: パディングを引く処理を削除し、getBoundingClientRect() の実サイズを使用
+  const fixedRect = {
+      top: rect.top,
+      left: rect.left,
+      width: rect.width, // 実サイズをそのまま使用
+      height: rect.height, // 実サイズをそのまま使用
+      el: el // 要素自体を保持
+  };
+
+  originalRect = fixedRect;
+  activeOpenElement = el;
+
+  // placeholder for card (元のサイズを保持)
+  placeholderEl = createPlaceholderFor(el, rect);
+
+  // save original inline style for restore
+  el.__sre_original_style = {
+    position: el.style.position || '',
+    top: el.style.top || '',
+    left: el.style.left || '',
+    width: el.style.width || '',
+    height: el.style.height || '',
+    margin: el.style.margin || '',
+    zIndex: el.style.zIndex || '',
+    transform: el.style.transform || '',
+    opacity: el.style.opacity || '',
+    pointerEvents: el.style.pointerEvents || '',
+    borderRadius: el.style.borderRadius || '' // borderRadiusも保存
+  };
+
+  el.style.position = "fixed";
+  el.style.top = rect.top + "px";
+  el.style.left = rect.left + "px";
+  // 修正: 固定化する要素の幅/高さはgetBoundingClientRect()のサイズ
+  el.style.width = rect.width + "px"; 
+  el.style.height = rect.height + "px";
+  el.style.margin = "0";
+  el.style.zIndex = 2001;
+  el.style.transform = "translate(0%,0%)";
+  // 修正: カードのopacityは常に1にする
+  el.style.opacity = 1;
+  el.style.pointerEvents = "none";
+  // 修正3: 展開前のborderRadiusを設定
+  el.style.borderRadius = getComputedStyle(el).borderRadius;
+}
+
+function resetElement(){
+  if (!activeOpenElement) return;
+  const el = activeOpenElement;
+  if (placeholderEl) { placeholderEl.remove(); placeholderEl = null; }
+
+  const s = el.__sre_original_style || {};
+  el.style.position = s.position;
+  el.style.top = s.top;
+  el.style.left = s.left;
+  el.style.width = s.width;
+  el.style.height = s.height;
+  el.style.margin = s.margin;
+  el.style.zIndex = s.zIndex;
+  el.style.opacity = s.opacity || '1';
+  el.style.transform = s.transform || 'translate(0%,0%)';
+  el.style.pointerEvents = s.pointerEvents || 'auto';
+  el.style.borderRadius = s.borderRadius || ''; // borderRadiusを元に戻す
+  activeOpenElement = null;
+  originalRect = null;
+}
+
+/* -----------------------------
+   animate open / close
+   ----------------------------- */
+function animateOpenFromEl(el){
+  return new Promise(resolve=>{
+    // elがHTMLElementではない（ダミーRectの場合）はここでHTMLElementを作成する
+    let targetEl = el;
+    if (!(el instanceof HTMLElement)) {
+      targetEl = document.createElement('div');
+      targetEl.style.position = 'fixed';
+      targetEl.style.top = el.top + 'px';
+      targetEl.style.left = el.left + 'px';
+      targetEl.style.width = el.width + 'px';
+      targetEl.style.height = el.height + 'px';
+      targetEl.style.backgroundColor = 'var(--md-sys-color-surface)';
+      targetEl.style.borderRadius = '32px';
+      targetEl.style.zIndex = '2001';
+      document.body.appendChild(targetEl);
+      // ダミー要素を開く場合、originalRectはダミーの固定Rectとする
+      originalRect = el;
+      // activeOpenElementに設定し、アニメーション後に削除する
+      activeOpenElement = targetEl; 
+    } else {
+        fixElement(el);
+    }
+    
+    moveEditorIntoExpander(); // ← ここで toolbar と editorWrap を expander に移動
+
+    // sync expander to element rect (originalRectはfixElement/ダミーで設定済み)
+    const rect = originalRect; 
+    expander.style.display = "flex";
+    expander.style.top = rect.top + "px";
+    expander.style.left = rect.left + "px";
+    expander.style.width = rect.width + "px";
+    expander.style.height = rect.height + "px";
+    expander.style.opacity = 0;
+    expander.style.transform = "translate(0,0)";
+    // 修正3: divのborder-radiusをボタンの状態に近い値(55px)で維持
+    expander.style.borderRadius = '55px';
+    expander.style.boxShadow = "none";
+    expander.style.pointerEvents = "none";
+
+    // make sure inner elements visible
+    editorToolbar.style.display = 'flex';
+    editorWrap.style.display = 'block';
+
+    // transitions
+    const duration = '0.6s';
+    const posTransition = `top ${duration} cubic-bezier(${easingPosOpen}), left ${duration} cubic-bezier(${easingPosOpen})`;
+    const sizeTransition = `width ${duration} cubic-bezier(${easingSizeOpen}), height ${duration} cubic-bezier(${easingSizeOpen})`;
+    const opacityTransition = `opacity ${duration} cubic-bezier(${easingOpacity})`;
+    const transformTransition = `transform ${duration} cubic-bezier(${easingPosOpen})`;
+    const radiusTransition = `border-radius ${duration} cubic-bezier(${easingPosOpen})`;
+    const shadowTransition = `box-shadow ${duration} ease`;
+    const allTransitions = `${posTransition}, ${sizeTransition}, ${opacityTransition}, ${transformTransition}, ${radiusTransition}, ${shadowTransition}`;
+
+    if (activeOpenElement) activeOpenElement.style.transition = allTransitions;
+    expander.style.transition = allTransitions;
+
+    requestAnimationFrame(()=>{
+      // expand to full screen
+      expander.style.top = '50%';
+      expander.style.left = '50%';
+      expander.style.width = '100vw'; // 100vwに展開
+      expander.style.height = '100vh'; // 100vhに展開
+      expander.style.transform = 'translate(-50%,-50%)';
+      expander.style.opacity = 1;
+      expander.style.borderRadius = '0px';
+      expander.style.boxShadow = '0px 0px 128px 11px rgba(0, 0, 0, 1)';
+
+      if (activeOpenElement){
+        activeOpenElement.style.top = '50%';
+        activeOpenElement.style.left = '50%';
+        activeOpenElement.style.width = '100vw'; // 100vwに展開
+        activeOpenElement.style.height = '100vh'; // 100vhに展開
+        activeOpenElement.style.transform = 'translate(-50%,-50%)';
+        activeOpenElement.style.borderRadius = '0px';
+        // 展開時、activeOpenElement（カードのクローン）を透明にする
+        activeOpenElement.style.opacity = 0; 
+      }
+    });
+
+    function onEnd(e){
+      if(['width','height','top','left','transform','opacity'].includes(e.propertyName)){
+        // leave expander displayed (contains toolbar/editor)
+        expander.removeEventListener('transitionend', onEnd);
+        // after expanded, hide selector behind and show editor UI (editor is already moved into expander)
+        selector.style.display = 'none'; 
+        // ensure toolbar/editor visible (they're inside expander)
+        editorToolbar.style.display = 'flex';
+        editorWrap.style.display = 'block';
+        // enable pointer events for expander so toolbar buttons work
+        expander.style.pointerEvents = 'auto';
+        resolve();
+      }
+    }
+    expander.addEventListener('transitionend', onEnd);
+  });
+}
+
+function animateCloseToRect(targetRect){
+  return new Promise(resolve=>{
+    // アニメーションが不要な場合は即座に終了 (ただし、Expanderの非表示とリストの再描画は必要)
+    if (!originalRect && !targetRect) {
+        expander.style.display = 'none';
+        restoreEditorFromExpander();
+        resetElement();
+        renderSelector();
+        resolve();
+        return;
+    }
+
+    // prepare transitions
+    const duration = '0.6s';
+    const posTransition = `top ${duration} cubic-bezier(${easingSizeOpen}), left ${duration} cubic-bezier(${easingSizeOpen})`;
+    const sizeTransition = `width ${duration} cubic-bezier(${easingPosOpen}), height ${duration} cubic-bezier(${easingPosOpen})`;
+    const opacityTransition = `opacity ${duration} cubic-bezier(${easingOpacity})`;
+    const transformTransition = `transform ${duration} cubic-bezier(${easingSizeOpen})`;
+    const radiusTransition = `border-radius ${duration} cubic-bezier(${easingSizeOpen})`;
+    const shadowTransition = `box-shadow ${duration} ease`;
+    const allTransitions = `${posTransition}, ${sizeTransition}, ${opacityTransition}, ${transformTransition}, ${radiusTransition}, ${shadowTransition}`;
+
+    // target rect: prefers provided targetRect, otherwise uses originalRect recorded earlier
+    const rect = targetRect || originalRect;
+    
+    // rectがダミー要素の場合、それをactiveOpenElementとして使用し続ける
+    if (!activeOpenElement) {
+      const dummy = document.createElement('div');
+      dummy.style.position = 'fixed';
+      dummy.style.top = '0';
+      dummy.style.left = '0';
+      dummy.style.width = '100vw';
+      dummy.style.height = '100vh';
+      dummy.style.zIndex = 2001;
+      dummy.style.opacity = 1;
+      dummy.style.backgroundColor = getComputedStyle(document.body).backgroundColor;
+      document.body.appendChild(dummy);
+      activeOpenElement = dummy;
+    }
+
+
+    if (activeOpenElement) activeOpenElement.style.transition = allTransitions;
+    expander.style.transition = allTransitions;
+
+    // 閉じアニメーション開始時に、セレクタを表示
+    selector.style.display = 'flex';
+    // activeOpenElementの背景色を設定
+    if (activeOpenElement) {
+       // activeOpenElementが元の要素であればその背景色を、ダミーであればbodyの背景色を設定
+       const bgColor = (rect.el && rect.el.style && rect.el.style.backgroundColor) ? rect.el.style.backgroundColor : getComputedStyle(document.body).backgroundColor;
+       activeOpenElement.style.backgroundColor = bgColor;
+    }
+
+    // animate expander back (rectを使用)
+    expander.style.top = rect.top + 'px';
+    expander.style.left = rect.left + 'px';
+    expander.style.width = rect.width + 'px';
+    expander.style.height = rect.height + 'px';
+    expander.style.transform = 'translate(0%,0%)';
+    expander.style.opacity = 0;
+    // divのborder-radiusをボタンの状態に近い値(55px)で維持
+    expander.style.borderRadius = '55px';
+    expander.style.boxShadow = 'none';
+
+    // animate active element (if it's a fixed clone) back visually (rectを使用)
+    if (activeOpenElement){
+      activeOpenElement.style.top = rect.top + 'px';
+      activeOpenElement.style.left = rect.left + 'px';
+      activeOpenElement.style.width = rect.width + 'px';
+      activeOpenElement.style.height = rect.height + 'px';
+      activeOpenElement.style.transform = 'translate(0%,0%)';
+      activeOpenElement.style.opacity = 1; // 閉じるときはフェードイン
+      // divのborder-radiusをボタンの状態に近い値(55px)で維持
+      activeOpenElement.style.borderRadius = '55px';
+    }
+
+    function handler(e){
+      if(['top','left','width','height','transform','opacity'].includes(e.propertyName)){
+        expander.style.display = 'none';
+        expander.removeEventListener('transitionend', handler);
+        // restore toolbar/editor into original places
+        restoreEditorFromExpander();
+        // cleanup fixed element placeholder if any
+        resetElement();
+        // if activeOpenElement was dummy we should remove it
+        if (activeOpenElement && activeOpenElement.parentNode && (!activeOpenElement.__sre_original_style || activeOpenElement.style.position === 'fixed')) {
+            // 元の要素としてfixElementで固定化されていない（placeholderがない）場合は削除する
+            if (!placeholderEl) {
+                activeOpenElement.parentNode.removeChild(activeOpenElement);
+            }
+        }
+        activeOpenElement = null;
+        renderSelector(); // 閉じ終わってから再描画
+        resolve();
+      }
+    }
+    expander.addEventListener('transitionend', handler);
+  });
+}
+
+/* -----------------------------
+   renderSelector / item generation
+   ----------------------------- */
+function renderSelector(){
+  docListEl.innerHTML = '';
+  const items = listDocs();
+  if(items.length === 0){
+    docListEl.innerHTML = '<div class="small" style="padding:16px;">ドキュメントがありません。右上から新規作成してください。</div>';
+    return;
+  }
+  
+  // 修正: ドキュメントカードの幅をJavaScriptで計算し、最大幅を適用
+  const containerWidth = selectorContent.offsetWidth; // 親要素の幅
+  const docListGap = 16; // #docListのgap
+  // 2列表示を維持するための最大幅。コンテナ幅の半分からギャップの半分を引いた値。
+  const maxCardWidth = Math.floor((containerWidth - docListGap) / 2);
+
+
+  items.forEach(d => {
+    const docItemContainer = document.createElement('div');
+    docItemContainer.className = 'doc-list-container';
+
+    const listItem = document.createElement('div');
+    listItem.className = 'doc-item-list';
+    listItem.setAttribute('data-doc-id', d.id);
+    
+    // 【重要】コンテンツに応じた幅を取得するための一時設定
+    // listItem.style.width = 'fit-content'; // fit-contentはIEなどで動作しないため、ここでは仮に'auto'を使用
+    listItem.style.width = 'auto'; // 一時的にautoに設定し、コンテンツ幅を取得
+    listItem.style.maxWidth = maxCardWidth + 'px'; // 最大幅は守る
+
+    const fileIcon = document.createElement('div');
+    fileIcon.innerHTML = '<span class="material-symbols-outlined" style="color: var(--md-sys-color-primary); margin-top: 4px;">article</span>';
+    fileIcon.style.textAlign = 'center';
+
+    const title = document.createElement('div');
+    title.className = 'doc-title';
+    title.textContent = d.title;
+
+    const metaInfo = document.createElement('div');
+    metaInfo.className = 'doc-meta-info';
+    metaInfo.textContent = (new Date(d.updatedAt)).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    const actions = document.createElement('div');
+    actions.className='doc-actions-list';
+
+    const previewBtn = document.createElement('md-icon-button');
+    previewBtn.innerHTML = '<span class="material-symbols-outlined">visibility</span>';
+    previewBtn.title = 'プレビュー';
+    previewBtn.onclick = (e)=> { e.stopPropagation(); showPreview(d.id); };
+
+    const deleteBtn = document.createElement('md-icon-button');
+    deleteBtn.innerHTML = '<span class="material-symbols-outlined" style="color:var(--md-sys-color-error)">delete</span>';
+    deleteBtn.title = 'ドキュメントを削除';
+    deleteBtn.onclick = (e)=> { e.stopPropagation(); deleteDoc(d.id); };
+
+    const openBtn = document.createElement('md-icon-button');
+    openBtn.innerHTML = '<span class="material-symbols-outlined">arrow_forward</span>';
+    openBtn.title = '編集を開く';
+    openBtn.onclick = (e)=> {
+      e.stopPropagation();
+      const card = listItem;
+      // prepare content into editor (defer UI show)
+      openEditor(d.id, null, { deferShow: true }).then(()=> {
+        // move toolbar/editor into expander AND animate from card
+        animateOpenFromEl(card).then(()=>{
+          // after expand finished, hide selector behind and show editor UI (editor is already moved into expander)
+          selector.style.display = 'none'; 
+          // push history & make sure editor UI is active
+          history.pushState({doc:d.id}, '', '?' + new URLSearchParams({doc:d.id}).toString());
+          // keep editor displayed inside expander (selector was hidden in animate end)
+        });
+      });
+    };
+
+    actions.appendChild(previewBtn);
+    actions.appendChild(deleteBtn);
+    actions.appendChild(openBtn);
+
+    listItem.appendChild(fileIcon);
+    listItem.appendChild(title);
+    listItem.appendChild(metaInfo);
+    listItem.appendChild(actions);
+    docItemContainer.appendChild(listItem);
+    
+    // DOMに一時的に挿入
+    docListEl.appendChild(docItemContainer); 
+
+    // 【重要】コンテンツに応じた幅（W）と、最大幅（maxCardWidth）の小さい方を最終的な幅とする
+    // 注意: getBoundingClientRect().width はパディングも含んだ実効幅
+    const actualWidth = listItem.getBoundingClientRect().width;
+    
+    // 最終的な幅を決定し、px単位で固定します。
+    const finalWidth = Math.min(actualWidth, maxCardWidth);
+    
+    // 修正: 計算した固定幅を適用
+    listItem.style.width = finalWidth + 'px';
+    listItem.style.maxWidth = 'none'; // 固定幅を設定したらmax-widthは不要
+  });
+}
+
+/* -----------------------------
+   preview logic (preview->編集もアニメーション)
+   ----------------------------- */
+function showPreview(id) {
+  const doc = docs[id];
+  if (!doc) return;
+  let docContent = '';
+  try {
+    const raw = localStorage.getItem(docStorageKey(id));
+    if (raw) {
+      const stored = JSON.parse(raw);
+      if (stored.content) docContent = decompressContent(stored.content);
+    }
+  } catch (e) { console.error('Error preview load:', e); }
+  previewTitle.textContent = doc.title + ' (プレビュー)';
+  previewContent.innerHTML = docContent || '<p style="color:#666; text-align:center; padding:20px;">ドキュメントは空です。</p>';
+
+  previewEditBtn.onclick = () => {
+    previewModal.removeAttribute('open');
+    // エディタが開く座標としてウィンドウ中央を仮定（ダミーの矩形情報）
+    const centerRect = {
+      top: window.innerHeight / 2 - 50,
+      left: window.innerWidth / 2 - 50,
+      width: 100,
+      height: 100,
+      // ダミー要素として機能させるためのプロパティ
+      el: { getBoundingClientRect: () => centerRect, getClientRects: () => [centerRect], style: { backgroundColor: 'var(--md-sys-color-surface)' } }
+    };
+
+    // prepare content into editor (defer UI show)
+    openEditor(id, null, { deferShow: true }).then(() => {
+      // 編集画面を開くアニメーションを開始（ダミー要素/中央から展開）
+      animateOpenFromEl(centerRect).then(() => {
+        // after expand finished, hide selector behind and show editor UI (editor is already moved into expander)
+        selector.style.display = 'none';
+        // push history & make sure editor UI is active
+        history.pushState({ doc: id }, '', '?' + new URLSearchParams({ doc: id }).toString());
+      });
+    });
+  };
+  previewModal.showModal();
+}
+
+/* -----------------------------
+   editor logic (open/save/state) - openEditor は変更なし
+   ----------------------------- */
+function saveCurrentContent() {
+  if (!currentDocId || !docs[currentDocId]) return;
+  const content = editor.innerHTML;
+  try {
+    const compressed = compressContent(content);
+    localStorage.setItem(docStorageKey(currentDocId), JSON.stringify({ content: compressed }));
+    docs[currentDocId].updatedAt = nowTs();
+    saveDocs();
+  } catch (e) {
+    console.error('Error saving content:', e);
+  }
+}
+
+function loadContent(id) {
+  try {
+    const raw = localStorage.getItem(docStorageKey(id));
+    if (raw) {
+      const stored = JSON.parse(raw);
+      if (stored.content) return decompressContent(stored.content);
+    }
+    return '';
+  } catch (e) {
+    console.error('Error loading content:', e);
+    return '';
+  }
+}
+
+function updateDocInfo(id) {
+  const doc = docs[id];
+  if (doc) {
+    currentDocInfo.textContent = `ドキュメント: ${doc.title} | 最終更新: ${(new Date(doc.updatedAt)).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
+  } else {
+    currentDocInfo.textContent = '';
+  }
+}
+
+function openEditor(id, title = null, { deferShow = false } = {}) {
+  return new Promise(resolve => {
+    saveCurrentContent(); // 既存のドキュメントを保存
+    currentDocId = id;
+    const content = loadContent(id);
+    editor.innerHTML = content;
+    updateStatus();
+    updateDocInfo(id);
+
+    // アニメーションを伴う場合は、ここでUIの表示を制御しない
+    if (!deferShow) {
+      // editorToolbarとeditorWrapは表示
+      editorToolbar.style.display = 'flex';
+      editorWrap.style.display = 'block';
+      // セレクターは非表示
+      selector.style.display = 'none';
+    }
+
+    resolve();
+  });
+}
+
+function updateStatus() {
+  const charCount = editor.textContent.length;
+  status.textContent = `文字数: ${charCount}`;
+}
+
+function execCommand(command, value = null) {
+  if (editor.contains(document.activeElement)) {
+    document.execCommand(command, false, value);
+    editor.focus();
+    updateStatus();
+  } else {
+    // 選択範囲を復元して実行
+    if (savedRange) {
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(savedRange);
+      document.execCommand(command, false, value);
+      updateStatus();
+      editor.focus();
+    }
+  }
+}
+
+function linkModalHandler(e) {
+  e.preventDefault();
+  const url = modalUrl.value;
+  const text = modalText.value;
+
+  if (e.submitter.id === 'modaOk' && url && text) {
+    execCommand('createLink', url);
+  }
+  linkModal.removeAttribute('open');
+}
+
+function linkChipSetup() {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+
+  const range = selection.getRangeAt(0);
+  let link = range.startContainer.parentNode;
+
+  // リンク要素を探す
+  while (link && link !== editor && link.tagName !== 'A') {
+    link = link.parentNode;
+  }
+
+  if (link && link.tagName === 'A') {
+    chipTarget = link;
+    const rect = link.getBoundingClientRect();
+    linkChip.style.display = 'flex';
+    linkChip.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+    linkChip.style.left = rect.left + 'px';
+
+    chipEdit.onclick = () => {
+      modalUrl.value = chipTarget.href;
+      modalText.value = chipTarget.textContent;
+      linkModal.showModal();
+      linkChip.style.display = 'none';
+      linkModal.onclose = () => {
+        if (linkModal.returnValue === 'default') {
+          // モーダルが閉じたら、現在のリンクを削除し、新しいリンクで置き換える
+          if (chipTarget) {
+            const range = document.createRange();
+            range.selectNode(chipTarget);
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand('unlink', false, null); // 既存のリンクを解除
+            savedRange = range; // 範囲を保存
+            execCommand('createLink', modalUrl.value); // 新しいリンクを作成
+            editor.focus();
+          }
+        }
+        chipTarget = null;
+      };
+    };
+
+    chipGo.onclick = () => {
+      window.open(chipTarget.href, '_blank');
+      linkChip.style.display = 'none';
+    };
+
+    // リンクをダブルクリックで削除する機能を追加
+    link.ondblclick = (e) => {
+        e.preventDefault();
+        removeLink(link);
+    };
+
+  } else {
+    linkChip.style.display = 'none';
+    chipTarget = null;
+  }
+}
+
+function removeLink(linkElement) {
+    if (linkElement && linkElement.tagName === 'A') {
+        const range = document.createRange();
+        range.selectNode(linkElement);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('unlink', false, null);
+        editor.focus();
+        linkChip.style.display = 'none';
+    }
+}
+
+
+function setupEventListeners(){
+  editor.addEventListener('input', updateStatus);
+  editor.addEventListener('mouseup', linkChipSetup);
+  editor.addEventListener('keyup', linkChipSetup);
+  editor.addEventListener('focus', () => savedRange = null);
+  editor.addEventListener('blur', () => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      savedRange = selection.getRangeAt(0);
+    }
+    saveCurrentContent(); // blurで自動保存
+    linkChip.style.display = 'none'; // リンクチップを非表示
+  });
+
+  // Toolbar events
+  document.getElementById('btnBold').addEventListener('click', () => execCommand('bold'));
+  document.getElementById('btnItalic').addEventListener('click', () => execCommand('italic'));
+  document.getElementById('btnClear').addEventListener('click', () => {
+    if (confirm('ドキュメントの全ての内容を削除しますか？')) {
+      editor.innerHTML = '';
+      updateStatus();
+      saveCurrentContent();
+    }
+  });
+
+  // Block type
+  document.getElementById('blockType').addEventListener('change', (e) => {
+    const format = e.target.value;
+    execCommand('formatBlock', format);
+    document.getElementById('menu-label').textContent = e.target.options[e.target.selectedIndex].textContent;
+    editor.focus();
+  });
+
+  // Link button
+  document.getElementById('btnLink').addEventListener('click', () => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      savedRange = selection.getRangeAt(0);
+      modalText.value = selection.toString() || '';
+    } else {
+      modalText.value = '';
+    }
+    modalUrl.value = '';
+    linkModal.showModal();
+  });
+  linkForm.addEventListener('submit', linkModalHandler);
+  document.getElementById('modalCancel').addEventListener('click', () => linkModal.removeAttribute('open'));
+
+  // Logo to Selector
+  topLogo.addEventListener('click', () => {
+    // 編集画面からセレクターに戻る
+    history.pushState(null, '', location.pathname);
+    showSelector();
+  });
+
+  // Create document
+  btnCreate.addEventListener('click', () => {
+    const title = newTitleInput.value.trim();
+    if (title) {
+      const id = createDoc(title);
+      newTitleInput.value = '';
+      // 作成後すぐにエディタを開く
+      openEditor(id, null, { deferShow: true }).then(()=> {
+        // カードを再描画して取得
+        renderSelector();
+        const card = document.querySelector(`.doc-item-list[data-doc-id="${id}"]`);
+        // 新規作成時、まだカードがない場合はセレクターヘッダーをアニメーションの原点とする
+        const animTarget = card || selector.querySelector('.selector-header'); 
+        animateOpenFromEl(animTarget).then(()=>{
+          selector.style.display = 'none';
+          history.pushState({doc:id}, '', '?' + new URLSearchParams({doc:id}).toString());
+        });
+      });
+    } else {
+      alert('ドキュメント名を入力してください。');
+    }
+  });
+
+  // Prev/Next Nav
+  window.addEventListener('keydown', (e) => {
+    // Ctrl/Cmd + B, I, K
+    if ((e.ctrlKey || e.metaKey) && ['b', 'i', 'k'].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+      if (e.key.toLowerCase() === 'b') execCommand('bold');
+      if (e.key.toLowerCase() === 'i') execCommand('italic');
+      if (e.key.toLowerCase() === 'k') document.getElementById('btnLink').click();
+    }
+    // Esc: リンクチップ非表示
+    if (e.key === 'Escape') {
+      linkChip.style.display = 'none';
+    }
+  });
+}
+
+/* -----------------------------
+   navigation / state
+   ----------------------------- */
+function showSelector(){
+  saveCurrentContent(); // 念のため保存
+  editor.innerHTML = '';
+  updateStatus();
+  currentDocInfo.textContent = '';
+  
+  // 編集画面から戻るアニメーションが必要な場合 (エディタがアクティブだった場合、かつoriginalRectが記録されている場合)
+  // originalRectには、開くときに記録された元のカードの座標が入っている
+  if (currentDocId && originalRect) {
+    const rectToAnimateTo = originalRect;
+    currentDocId = null;
+    editorToolbar.style.display = 'none';
+    editorWrap.style.display = 'none';
+    
+    // 編集画面を閉じるアニメーション (originalRectに元のカードの位置が記録されている)
+    animateCloseToRect(rectToAnimateTo).then(()=>{
+        // アニメーション完了時にrenderSelector()が呼ばれる
+    });
+  } else {
+    // 初回表示または直接アクセスでアニメーションが不要な場合
+    currentDocId = null;
+    selector.style.display = 'flex';
+    editorToolbar.style.display = 'none';
+    editorWrap.style.display = 'none';
+    renderSelector(); // 即座に一覧を描画
+  }
+}
+
+window.addEventListener('popstate', (e) => {
+  const params = new URLSearchParams(window.location.search);
+  const docId = params.get('doc');
+  if (docId && docs[docId]) {
+    // URLにドキュメントIDがあれば、エディタを開く
+    currentDocId = docId;
+    openEditor(docId, null, { deferShow: false });
+    selector.style.display = 'none'; // エディタを開いたので非表示
+  } else {
+    // ドキュメントIDがなければ、セレクターを表示
+    currentDocId = null; 
+    showSelector();
+  }
+});
+
+/* -----------------------------
+   初期化
+   ----------------------------- */
+function init(){
+  loadDocs();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const docId = urlParams.get('doc');
+
+  if (docId && docs[docId]) {
+    // URLにドキュメントIDがあれば、エディタを開く
+    openEditor(docId, null, { deferShow: false });
+    // エディタが表示されているので、セレクターを非表示
+    selector.style.display = 'none';
+  } else {
+    // IDがなければセレクターを表示し、ドキュメント一覧をレンダリング
+    currentDocId = null;
+    selector.style.display = 'flex';
+    editorToolbar.style.display = 'none';
+    editorWrap.style.display = 'none';
+    renderSelector(); // 即座にドキュメント一覧を描画
+  }
+  setupEventListeners(); // イベントリスナーの設定
+  
+  // ウィンドウサイズ変更時にセレクターを再描画してカードサイズを調整
+  window.addEventListener('resize', () => {
+      // セレクターが表示されている場合のみ再描画
+      if (selector.style.display !== 'none') {
+          // カードの幅計算をやり直す
+          renderSelector();
+      }
+  });
+}
+
+// ページロード時に初期化関数を実行
+init();
+</script>
+</body>
+</html>

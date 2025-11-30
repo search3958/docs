@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jspreadsheet CE v4 Fullscreen with Toolbar</title>
+
+    <link rel="stylesheet" href="https://jsuites.net/v4/jsuites.css" type="text/css" />
+    <link rel="stylesheet" href="https://bossanova.uk/jspreadsheet/v4/jspreadsheet.css" type="text/css" />
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Material+Icons" />
+
+    <style>
+        html, body {
+            /* ページ全体を占めるようにマージンとパディングをリセット */
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #spreadsheet-container {
+            /* コンテナをビューポート全体に合わせる */
+            width: 100vw; 
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="spreadsheet-container"></div>
+
+    <script src="https://jsuites.net/v4/jsuites.js"></script>
+    <script src="https://bossanova.uk/jspreadsheet/v4/jspreadsheet.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            jspreadsheet(document.getElementById('spreadsheet-container'), {
+                // スプレッドシートデータ（例）
+                data: [
+                    ['Model', 'Year', 'Price'],
+                    ['Mazda', 2001, 2000],
+                    ['Peugeot', 2010, 5000],
+                    ['Honda Fit', 2009, 3000],
+                ],
+                // ツールバーを配列で明示的に定義し、表示を強制します
+                toolbar: [
+                    {
+                        icon: 'undo',
+                        title: 'Undo',
+                        onclick: function() { this.undo(); },
+                    },
+                    {
+                        icon: 'redo',
+                        title: 'Redo',
+                        onclick: function() { this.redo(); },
+                    },
+                    { type: 'divisor' }, // 区切り線
+                    {
+                        icon: 'content_cut',
+                        title: 'Cut',
+                        onclick: function() { document.execCommand('cut'); },
+                    },
+                    {
+                        icon: 'content_copy',
+                        title: 'Copy',
+                        onclick: function() { document.execCommand('copy'); },
+                    },
+                ],
+                // その他の設定
+                minDimensions: [10, 20],
+                tabs: true, // タブ（ワークシート）を有効にする
+            });
+        });
+    </script>
+</body>
+</html>

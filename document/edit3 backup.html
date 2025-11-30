@@ -1,0 +1,378 @@
+<!doctype html><html lang="ja"><head><script type="importmap">{"imports": {"@material/web/": "https://esm.run/@material/web/"}}</script><script type="module">
+import '@material/web/all.js';
+import {styles as typescaleStyles} from '@material/web/typography/md-typescale-styles.js';
+document.adoptedStyleSheets.push(typescaleStyles.styleSheet);</script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" /><link href="https://fonts.googleapis.com/css2?family=M+PLUS+2:wght@100..900&display=swap" rel="stylesheet"><script>
+if ("paintWorklet" in CSS) {
+const workletCode = `
+const drawSquircle=(ctx,geom,radii,smooth,lineWidth,color)=>{const defaultFill=color;const lineWidthOffset=lineWidth/2;ctx.beginPath();ctx.lineTo(radii[0],lineWidthOffset);ctx.lineTo(geom.width-radii[1],lineWidthOffset);ctx.bezierCurveTo(geom.width-radii[1]/smooth,lineWidthOffset,geom.width-lineWidthOffset,radii[1]/smooth,geom.width-lineWidthOffset,radii[1]);ctx.lineTo(geom.width-lineWidthOffset,geom.height-radii[2]);ctx.bezierCurveTo(geom.width-lineWidthOffset,geom.height-radii[2]/smooth,geom.width-radii[2]/smooth,geom.height-lineWidthOffset,geom.width-radii[2],geom.height-lineWidthOffset);ctx.lineTo(radii[3],geom.height-lineWidthOffset);ctx.bezierCurveTo(radii[3]/smooth,geom.height-lineWidthOffset,lineWidthOffset,geom.height-radii[3]/smooth,lineWidthOffset,geom.height-radii[3]);ctx.lineTo(lineWidthOffset,radii[0]);ctx.bezierCurveTo(lineWidthOffset,radii[0]/smooth,radii[0]/smooth,lineWidthOffset,radii[0],lineWidthOffset);ctx.closePath();if(lineWidth){ctx.strokeStyle=defaultFill;ctx.lineWidth=lineWidth;ctx.stroke()}else{ctx.fillStyle=defaultFill;ctx.fill()}};class SquircleClass{static get contextOptions(){return{alpha:true}}static get inputProperties(){return["--squircle-radius","--squircle-radius-top-left","--squircle-radius-top-right","--squircle-radius-bottom-right","--squircle-radius-bottom-left","--squircle-smooth","--squircle-outline","--squircle-fill"]}paint(ctx,geom,properties){const smoothRatio=10;const distanceRatio=1.8;const squircleSmooth=parseFloat(properties.get("--squircle-smooth")*smoothRatio);const individualRadiiProps=SquircleClass.inputProperties.slice(1,5);let squircleRadii=individualRadiiProps.map(prop=>{const value=properties.get(prop);return value?parseInt(value,10)*distanceRatio:NaN});let shorthand_R;if(squircleRadii.some(isNaN)){const radiusRegex=/([0-9]+[a-z%]*)/g;const radius_shorthand=properties.get("--squircle-radius").toString();const matches=radius_shorthand.match(radiusRegex);if(matches){shorthand_R=matches.map(val=>parseInt(val,10)*distanceRatio);while(shorthand_R.length<4){if(shorthand_R.length===1){shorthand_R.push(shorthand_R[0])}else if(shorthand_R.length===2){shorthand_R=[shorthand_R[0],shorthand_R[1],shorthand_R[0],shorthand_R[1]]}else if(shorthand_R.length===3){shorthand_R=[shorthand_R[0],shorthand_R[1],shorthand_R[2],shorthand_R[1]]}}}else{const defaultRadius=squircleRadii.every(isNaN)?8*distanceRatio:0;shorthand_R=[defaultRadius,defaultRadius,defaultRadius,defaultRadius]}}squircleRadii=squircleRadii.map((val,i)=>isNaN(val)?shorthand_R[i]:val);const squrcleOutline=parseFloat(properties.get("--squircle-outline"),10);const squrcleColor=properties.get("--squircle-fill").toString();const isSmooth=()=>{if(typeof properties.get("--squircle-smooth")[0]!=="undefined"){if(squircleSmooth===0){return 1}return squircleSmooth}else{return 10}};const isOutline=()=>{if(squrcleOutline){return squrcleOutline}else{return 0}};const isColor=()=>{if(squrcleColor){return squrcleColor}else{return"#f45"}};const maxRadius=Math.max(...squircleRadii);if(maxRadius<geom.width/2&&maxRadius<geom.height/2){drawSquircle(ctx,geom,squircleRadii,isSmooth(),isOutline(),isColor())}else{const minRadius=Math.min(geom.width/2,geom.height/2);drawSquircle(ctx,geom,squircleRadii.map(()=>minRadius),isSmooth(),isOutline(),isColor())}}}if(typeof registerPaint!=="undefined"){registerPaint("squircle",SquircleClass)}`;
+const blob = new Blob([workletCode], { type: 'application/javascript' });
+const blobURL = URL.createObjectURL(blob);
+CSS.paintWorklet.addModule(blobURL);}</script><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>簡易リッチエディタ（最小版） - ドキュメント選択対応</title><style>@view-transition {
+navigation: auto;}/* Material 3 Expressive Color & Typography */:root{--md-sys-color-primary: #0037FF; /* Expressive Blue */--md-sys-color-surface-tint: #0037FF;--md-sys-color-on-primary: rgb(255 255 255);--md-sys-color-background: #F2F2F2; /* Lighter, warmer background */--md-sys-color-on-background: rgb(25 28 32);--md-sys-color-surface: rgb(255 255 255);--md-sys-color-on-surface: rgb(25 28 32);--md-sys-color-outline-variant: rgb(200 200 210); /* Soft border */--md-dialog-container-color:#fff;}</style><style>*{
+font-family: "M PLUS 2", sans-serif;}.material-symbols-outlined {
+font-size:24px; /* アイコンを大きく */
+position:relative;
+top:2px;
+font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24
+}
+body {
+margin: 0px;
+color: #111;
+background: var(--md-sys-color-background);}
+a{ color:var(--md-sys-color-primary); }.toolbar {
+display: flex;
+gap: 12px; /* ギャップを広げる */
+flex-wrap: wrap;
+margin-bottom: 8px;
+position:fixed;
+background: var(--md-sys-color-surface);
+top:0;
+left:0;
+width:100vw;
+padding: 16px 24px;
+z-index:10;
+box-shadow: 0 1px 4px rgba(0,0,0,0.1);}.editor {
+min-height: 160px;
+background: var(--md-sys-color-surface);
+outline:none;
+padding: 32px 48px; /* パディングを広く */
+margin:24px;
+margin-top:100px;
+mask-image: paint(squircle);--squircle-radius: 40px;--squircle-smooth: 0.7;}.editor:empty:before { content: attr(data-placeholder); color: #999 }.status { margin-top: 8px; font-size: 14px; color: #444 }/* 選択画面 - MODERN & EXPRESSIVE */.selector {
+display: flex;
+flex-direction: column;
+height: 100vh;
+background: var(--md-sys-color-background);}.selector-header {
+display: flex;
+align-items: center;
+padding: 24px;
+border-bottom: 1px solid var(--md-sys-color-outline-variant);
+gap: 24px; /* ギャップを広く */
+background: var(--md-sys-color-surface);
+box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+position: sticky;
+top: 0;
+z-index: 5;}.selector-header h2 {
+font-weight: 500;
+font-size: 28px; /* 大きなフォント */
+color: var(--md-sys-color-on-surface);
+margin: 0;
+flex-grow: 1;}.selector-content {
+padding: 40px; /* パディングを広く */
+flex-grow: 1;
+overflow-y: auto;
+max-width: 1400px; /* 最大幅を広げる */
+width: 100%;
+margin: 0 auto;}#docList {
+display: flex
+;
+flex-wrap: wrap;
+flex-direction: row;
+gap: 16px;}/* ドキュメントリスト - EXPRESSIVE LIST STYLE */.doc-list-container {
+display: flex;
+flex-direction: column;
+margin-bottom: 12px;
+width:fit-content;}.doc-item-list {
+display: flex
+;
+align-items: flex-start;
+gap: 8px;
+padding: 24px;
+background: var(--md-sys-color-surface);
+border-radius: 16px;
+cursor: pointer;
+flex-direction: column;
+width: fit-content;
+max-width: 50vw;
+overflow: hidden;
+mask-image: paint(squircle);--squircle-radius: 32px;--squircle-smooth: 0.7;
+transition: all 0.2s ease-in-out; /* ホバー効果を追加 */}.doc-item-list:hover {
+box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+transform: translateY(-2px);}.doc-title{
+font-size: 24px; /* フォントを大きく */
+font-weight: 500;
+color: var(--md-sys-color-on-surface);
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;}.doc-meta-info {
+font-size: 14px;
+color: var(--md-sys-color-on-surface-variant);
+text-align: right;}.doc-actions-list {
+display: flex;
+gap: 8px;
+justify-content: flex-end; /* アクションを右寄せ */
+width: 100%;
+margin-top: 12px; /* スペースを確保 */}.small{ font-size:13px; color:#666 }.logo{ cursor:pointer }/* プレビューモーダルのコンテンツ */#previewContent {
+max-height: 70vh;
+overflow-y: auto;
+padding: 0 24px;
+line-height: 1.6;}#previewContent h1 { font-size: 2em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; margin-top: 1em; }#previewContent h2 { font-size: 1.5em; margin-top: 1em; }#previewContent p { margin-bottom: 1em; }
+dialog{
+mask-image: paint(squircle);--squircle-radius: 24px;--squircle-smooth: 0.7;}</style></head><body><div id="editorToolbar" class="toolbar"><svg id="topLogo" class="logo" width="44" height="44" viewBox="0 0 31 31" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="31" height="10.3333" rx="5.16667" fill="#313E6D"/><rect y="10.3333" width="31" height="10.3333" rx="5.16667" fill="#9BA5C1"/><rect y="20.6667" width="31" height="10.3333" rx="5.16667" fill="#DFE3EE"/><rect x="20.6667" y="20.6667" width="10.3333" height="10.3333" rx="5.16667" fill="#0037FF"/></svg><style>#blockType { position: absolute; opacity: 0; inset: 0; cursor: pointer; }.wrapper { position: relative; display: inline-block; }</style><div class="wrapper"><label><md-filled-tonal-button style="height:100%"><span id="menu-label">本文</span><md-ripple></md-ripple></md-filled-tonal-button><select id="blockType"><option value="p">本文</option><option value="h1">見出し1</option><option value="h2">見出し2</option></select></label></div><script type="module">
+const selectElement = document.querySelector('#blockType');
+const menuLabel = document.querySelector('#menu-label');
+selectElement.addEventListener('change', () => { const option = selectElement.selectedOptions[0]; menuLabel.textContent = option.textContent; });</script><md-filled-tonal-button id="btnBold" title="太字 (Ctrl/Cmd+B)"><span class="material-symbols-outlined">format_bold</span></md-filled-tonal-button><md-filled-tonal-button id="btnItalic" title="斜体 (Ctrl/Cmd+I)"><span class="material-symbols-outlined">format_italic</span></md-filled-tonal-button><md-filled-tonal-button id="btnLink" title="リンク (Ctrl/Cmd+K)"><span class="material-symbols-outlined">add_link</span></md-filled-tonal-button><md-filled-tonal-button id="btnClear" title="全て削除"><span class="material-symbols-outlined">delete_forever</span></md-filled-tonal-button></div><div id="selector" class="selector" style="display:none"><div class="selector-header"><svg class="logo" width="44" height="44" viewBox="0 0 31 31" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="31" height="10.3333" rx="5.16667" fill="#313E6D"/><rect y="10.3333" width="31" height="10.3333" rx="5.16667" fill="#9BA5C1"/><rect y="20.6667" width="31" height="10.3333" rx="5.16667" fill="#DFE3EE"/><rect x="20.6667" y="20.6667" width="10.3333" height="10.3333" rx="5.16667" fill="#0037FF"/></svg><h2>ドキュメント</h2><div style="display:flex;gap:12px;align-items:center;"><input id="newTitle" placeholder="新規ドキュメント名"></input><md-filled-button id="btnCreate" trailing-icon>
+作成
+<span slot="trailing-icon" class="material-symbols-outlined">add</span></md-filled-button></div></div><div class="selector-content"><h3 style="font-weight: 500; margin-top: 0; color: var(--md-sys-color-on-surface); font-size: 20px;">最近使用したドキュメント</h3><div id="docList" class="doc-list"></div></div></div><div id="editorWrap" style="display:none"><div id="editor" class="editor" contenteditable="true" data-placeholder="ここに入力してください（見出し、太字、リンクなど）。"></div><div style="display:flex;gap:12px;align-items:center;margin:24px;margin-top:8px"><div class="status" id="status">文字数: 0</div><div class="small" id="currentDocInfo"></div></div></div><md-dialog id="linkModal"><div slot="headline">リンクの追加</div><form slot="content" method="dialog" id="linkForm"><md-filled-text-field label="リンク先URL" id="modalUrl" value="Value"></md-filled-text-field><md-filled-text-field label="表示テキスト" id="modalText" value="Value"></md-filled-text-field><md-filled-button id="modalCancel" value="default">キャンセル</md-filled-button><md-filled-button id="modaOk" value="default">追加</md-filled-button></form></md-dialog><div id="linkChip" style="display:none;position:absolute;z-index:1000;background:#fff;border:1px solid #ccc;padding:6px 12px;border-radius:6px;box-shadow:0 2px 8px #0002;font-size:14px;gap:8px;align-items:center;"><button id="chipEdit" style="margin-left:0;">編集</button><button id="chipGo" style="margin-left:8px;">アクセス</button></div><md-dialog id="previewModal"><div slot="headline" id="previewTitle">ドキュメント プレビュー</div><div slot="content" id="previewContent"></div><div slot="actions"><md-text-button id="previewEditBtn">編集画面へ</md-text-button><md-text-button onclick="document.getElementById('previewModal').removeAttribute('open');">閉じる</md-text-button></div></md-dialog><script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script><script>// ドキュメント管理（LocalStorage）
+
+const DOCS_KEY = 'my_sre_docs_v1';
+const DOC_CONTENT_PREFIX = 'my_sre_doc_';
+const editor = document.getElementById('editor');
+const status = document.getElementById('status');
+const linkModal = document.getElementById('linkModal');
+const linkForm = document.getElementById('linkForm');
+const modalUrl = document.getElementById('modalUrl');
+const modalText = document.getElementById('modalText');
+const linkChip = document.getElementById('linkChip');
+const chipEdit = document.getElementById('chipEdit');
+const chipGo = document.getElementById('chipGo');
+const topLogo = document.getElementById('topLogo');
+const selector = document.getElementById('selector');
+const docListEl = document.getElementById('docList');
+const btnCreate = document.getElementById('btnCreate');
+const newTitleInput = document.getElementById('newTitle');
+const currentDocInfo = document.getElementById('currentDocInfo');
+const editorWrap = document.getElementById('editorWrap');
+const editorToolbar = document.getElementById('editorToolbar');
+let docs = {};
+let currentDocId = null;
+let savedRange = null;
+let chipTarget = null;
+function compressContent(content) {
+if (!window.pako) return content;
+const strData = new TextEncoder().encode(content);
+const compressed = pako.deflate(strData, { level: 9 });
+return btoa(String.fromCharCode.apply(null, compressed));}
+function decompressContent(compressedContent) {
+if (!window.pako) return compressedContent;
+try {
+const binaryString = atob(compressedContent);
+const len = binaryString.length;
+const bytes = new Uint8Array(len);
+for (let i = 0; i < len; i++) {
+bytes[i] = binaryString.charCodeAt(i);}
+const decompressed = pako.inflate(bytes, { to: 'string' });
+return decompressed;} catch (e) {
+return compressedContent;}}
+function nowTs(){ return new Date().toISOString(); }
+function genId(){ return 'doc-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,6); }
+function loadDocs(){ try{ const raw = localStorage.getItem(DOCS_KEY); docs = raw ? JSON.parse(raw) : {}; }catch(e){ console.error('Error loading docs meta:', e); docs = {}; } }
+function saveDocs(){ try{ localStorage.setItem(DOCS_KEY, JSON.stringify(docs)); }catch(e){ console.error('Error saving docs meta:', e); } }
+function docStorageKey(id){ return DOC_CONTENT_PREFIX + id; }
+function createDoc(title){
+const id = genId();// 履歴機能は削除
+
+const doc = { id, title: title || '無題', createdAt: nowTs(), updatedAt: nowTs() };
+docs[id] = doc;
+saveDocs();// コンテンツ保存時も履歴は削除
+
+localStorage.setItem(docStorageKey(id), JSON.stringify({ content: compressContent('') }));
+return id;}// ★ドキュメント削除機能の追加
+
+function deleteDoc(id){
+if (!confirm(`ドキュメント「${docs[id].title}」を完全に削除しますか？この操作は元に戻せません。`)) {
+return;}// メタデータから削除
+
+delete docs[id];
+saveDocs();// コンテンツをLocalStorageから削除
+
+localStorage.removeItem(docStorageKey(id));// UIを更新
+
+renderSelector();// もし削除したドキュメントを編集中だった場合、セレクタ画面に戻る
+
+if (currentDocId === id) {
+showSelector();}}
+function listDocs(){ return Object.values(docs).sort((a,b)=> (a.updatedAt < b.updatedAt) ? 1 : -1); }// ★選択画面のレンダリングを更新
+
+function renderSelector(){
+docListEl.innerHTML = '';
+const items = listDocs();
+if(items.length === 0){ docListEl.innerHTML = '<div class="small" style="padding: 16px;">ドキュメントがありません。右上から新規作成してください。</div>'; return }
+items.forEach(d => {
+const docItemContainer = document.createElement('div');
+docItemContainer.className = 'doc-list-container';// NOTE: リスト全体クリックでエディタを開く機能を削除し、明示的なボタンに任せる
+
+const listItem = document.createElement('div');
+listItem.className = 'doc-item-list';// listItem.onclick = ()=> openEditor(d.id); // 直接クリックで開くのを停止
+// ファイルアイコン
+
+const fileIcon = document.createElement('div');
+fileIcon.innerHTML = '<span class="material-symbols-outlined" style="color: var(--md-sys-color-primary); margin-top: 4px;">article</span>';
+fileIcon.style.textAlign = 'center';
+const title = document.createElement('div');
+title.className = 'doc-title';
+title.textContent = d.title;
+const metaInfo = document.createElement('div');
+metaInfo.className = 'doc-meta-info';
+metaInfo.textContent = (new Date(d.updatedAt)).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const actions = document.createElement('div');
+actions.className='doc-actions-list';// --- プレビューボタン ---
+const previewBtn = document.createElement('md-icon-button');
+previewBtn.innerHTML = '<span class="material-symbols-outlined">visibility</span>';
+previewBtn.title = 'プレビュー';
+previewBtn.onclick = (e)=> { e.stopPropagation(); showPreview(d.id); };// ★ 削除ボタン
+
+const deleteBtn = document.createElement('md-icon-button');
+deleteBtn.innerHTML = '<span class="material-symbols-outlined" style="color:var(--md-sys-color-error)">delete</span>';
+deleteBtn.title = 'ドキュメントを削除';
+deleteBtn.onclick = (e)=> { e.stopPropagation(); deleteDoc(d.id); };// 編集ボタン
+
+const openBtn = document.createElement('md-icon-button');
+openBtn.innerHTML = '<span class="material-symbols-outlined">arrow_forward</span>';
+openBtn.title = '編集を開く';
+openBtn.onclick = (e)=> { e.stopPropagation(); openEditor(d.id); };
+actions.appendChild(previewBtn);
+actions.appendChild(deleteBtn); // 削除ボタンを追加
+
+actions.appendChild(openBtn);
+listItem.appendChild(fileIcon);
+listItem.appendChild(title);
+listItem.appendChild(metaInfo);
+listItem.appendChild(actions);// 履歴UIは完全に削除
+// histWrap.style.display='none';
+docItemContainer.appendChild(listItem);
+docListEl.appendChild(docItemContainer);});}// --- プレビュー表示ロジックの追加 ---
+function showPreview(id) {
+const doc = docs[id];
+if (!doc) return;
+let docContent = '';
+try {
+const raw = localStorage.getItem(docStorageKey(id));
+if (raw) {
+const stored = JSON.parse(raw);
+if (stored.content) docContent = decompressContent(stored.content);}} catch (e) {
+console.error('Error loading/decompressing doc content for preview:', e);}
+const previewModal = document.getElementById('previewModal');
+const previewTitle = document.getElementById('previewTitle');
+const previewContent = document.getElementById('previewContent');
+const previewEditBtn = document.getElementById('previewEditBtn');
+previewTitle.textContent = doc.title + ' (プレビュー)';// innerHTMLで表示することで、エディタで書いたHTMLをそのまま表示する
+
+previewContent.innerHTML = docContent || '<p style="color:#666; text-align:center; padding: 20px;">ドキュメントは空です。</p>';// 編集ボタンを押したらプレビューを閉じ、エディタを開く
+
+previewEditBtn.onclick = () => {
+previewModal.removeAttribute('open');
+openEditor(id);};
+previewModal.setAttribute('open', '');}// ... (その他の関数は前回と同じ) ...
+function showSelector(){
+editorWrap.style.display='none';
+editorToolbar.style.display='none';
+selector.style.display='flex';
+currentDocId = null;
+currentDocInfo.textContent='';
+history.replaceState({},'', location.pathname);
+renderSelector();}
+function showEditorUI(){
+selector.style.display='none';
+editorToolbar.style.display='flex';
+editorWrap.style.display='block';}
+function openEditor(id, contentFromHistory=null){ // contentFromHistoryは使わないが引数としては残す
+
+const doc = docs[id];
+if(!doc){
+alert('ドキュメントが見つかりません: '+id);
+showSelector();
+return
+}
+currentDocId = id;
+let docContent = '';
+try{
+const raw = localStorage.getItem(docStorageKey(id));
+if(raw){
+const stored = JSON.parse(raw);
+if(stored.content) docContent = decompressContent(stored.content);}}catch(e){
+console.error('Error loading/decompressing doc content:', e);}// 履歴からの復元ロジックは削除したため、docContentのみを使用
+
+editor.innerHTML = docContent || '';
+updateStatus();
+currentDocInfo.textContent = `編集中: ${doc.title} （ID: ${doc.id}）`;
+showEditorUI();
+history.pushState({doc:id}, '', '?' + new URLSearchParams({doc:id}).toString());}
+function initFromUrl(){
+loadDocs();
+const params = new URLSearchParams(location.search);
+const id = params.get('doc');
+if(id){
+if(docs[id]){
+openEditor(id);} else {
+if(confirm('指定されたドキュメントが見つかりませんでした。新しく作成しますか？')){
+const newId = createDoc('無題');
+openEditor(newId);} else {
+showSelector();}}} else {
+showSelector();}}
+function saveCurrentDoc(){
+if(!currentDocId) return;
+const doc = docs[currentDocId];
+if(!doc) return;
+const now = nowTs();
+const content = editor.innerHTML;
+const compressedContent = compressContent(content);// 履歴管理ロジックを完全に削除し、コンテンツのみを保存
+
+doc.updatedAt = now;
+try{// 履歴関連のフィールドを削除し、contentのみを保存
+
+localStorage.setItem(docStorageKey(currentDocId), JSON.stringify({ content: compressedContent }));}catch(e){
+console.error('Error saving/compressing doc content:', e);}
+saveDocs();
+updateStatus();}
+function saveIntervalStart(){ setInterval(()=>{ saveCurrentDoc(); }, 3000); }// UI bindings (一部省略)
+function exec(command,val=null){ document.execCommand(command, false, val); editor.focus(); updateStatus(); saveCurrentDoc(); }
+document.getElementById('btnBold').onclick = ()=> exec('bold');
+document.getElementById('btnItalic').onclick = ()=> exec('italic');
+document.getElementById('btnClear').onclick = ()=>{ if(confirm('内容を消去しますか？')){ editor.innerHTML = ''; updateStatus(); saveCurrentDoc(); } };
+document.getElementById('blockType').addEventListener('change', (e)=>{ const v = e.target.value; if(v === 'p') exec('formatBlock','p'); else exec('formatBlock', v); });
+document.getElementById('modalCancel').onclick = () => { linkModal.removeAttribute('open'); savedRange = null; };
+document.getElementById('btnLink').onclick = ()=>{
+const sel = window.getSelection();
+let selectedText = sel && !sel.isCollapsed ? sel.toString() : '';
+modalUrl.value = '';
+modalText.value = selectedText;
+if(sel && sel.rangeCount > 0) savedRange = sel.getRangeAt(0).cloneRange(); else savedRange = null;
+linkModal.setAttribute('open',''); setTimeout(()=>modalUrl.focus(),50);
+linkForm.onsubmit = (ev)=>{
+ev.preventDefault();
+linkModal.removeAttribute('open');
+const url = modalUrl.value;
+let text = modalText.value || url;
+if(!url) return;
+if(savedRange){
+const sel2 = window.getSelection();
+sel2.removeAllRanges();
+sel2.addRange(savedRange);
+savedRange.deleteContents();
+const a = document.createElement('a');
+a.href = url;
+a.textContent = text;
+a.target = '_blank';
+savedRange.insertNode(a);
+savedRange.setStartAfter(a);
+savedRange.collapse(true);
+sel2.removeAllRanges();
+sel2.addRange(savedRange);
+saveCurrentDoc();}
+savedRange = null;};};
+editor.addEventListener('input', ()=>{ updateStatus(); });// ロゴクリック -> 戻る（選択画面）
+
+topLogo.addEventListener('click', ()=>{
+if(currentDocId){
+saveCurrentDoc();
+showSelector();}});
+function updateStatus(){ const t = (editor.innerText || '').trim(); status.textContent = '文字数: ' + t.length; }// create button
+
+btnCreate.addEventListener('click', ()=>{
+const inputEl = newTitleInput.shadowRoot ? newTitleInput.shadowRoot.querySelector('input') : newTitleInput;
+const title = (inputEl.value || '').trim() || '無題';
+loadDocs();
+const id = createDoc(title);
+openEditor(id);});// handle browser back/forward
+
+window.addEventListener('popstate', (e)=>{
+const params = new URLSearchParams(location.search);
+const id = params.get('doc');
+if(id){
+if(docs[id]) openEditor(id);
+else showSelector();} else {
+showSelector();}});// 初期ロード
+
+initFromUrl();
+saveIntervalStart();</script></body></html>

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>複数ボタン対応→全画面DIV同期アニメーション（完成版）</title>
+<style>
+  body {
+    margin: 0;
+    padding: 2rem;
+    font-family: sans-serif;
+    background: #f0f0f0;
+  }
+
+  .open-btn {
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    border: none;
+    border-radius: 8px;
+    background: #ffffff;
+    color: rgb(19, 19, 19);
+    cursor: pointer;
+    z-index: 1;
+    margin-right: 15px; 
+    margin-bottom: 15px;
+  }
+
+  /* Flexboxで中央配置に設定 */
+  .expanding-div {
+    position: fixed;
+    background: rgb(255, 255, 255);
+    border-radius: 12px;
+    overflow: hidden;
+    z-index: 1000;
+    display: none; /* 初期状態は非表示 */
+    justify-content: center; /* 水平方向中央 */
+    align-items: center; /* 垂直方向中央 */
+    opacity: 0;
+  }
+
+  /* 子要素h2の文字色を背景色に合わせて調整 */
+  .expanding-div h2 {
+    color: rgb(19, 19, 19); 
+    padding: 2rem;
+  }
+
+  .close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 6px;
+    background: #222;
+    color: #fff;
+    cursor: pointer;
+    z-index: 1002;
+  }
+</style>
+</head>
+<body>
+
+<h1>普通に配置されたボタン（複数）</h1>
+<p>どのボタンを押しても div が全画面に広がります。プレースホルダーにより、周囲のコンテンツはズレません。</p>
+
+<button class="open-btn">ボタン 1</button>
+<button class="open-btn">ボタン 2</button>
+<button class="open-btn">ボタン 3</button>
+
+<p style="margin-top: 2rem;">その他のコンテンツがここにあります。</p>
+
+
+<div id="expander" class="expanding-div">
+  <button id="closeBtn" class="close-btn">戻る</button>
+  <h2>全画面モード！</h2>
+</div>
+
+<script>
+  
+const openBtns = document.querySelectorAll(".open-btn");
+const expander = document.getElementById("expander");
+const closeBtn = document.getElementById("closeBtn");
+
+let originalRect; // クリックされたボタンの Rect を格納
+let activeOpenBtn = null; // 現在アニメーションの起点となっているボタンを格納
+let placeholder = null; // プレースホルダーを保持する変数
+
+// イージング定義
+const easingPosOpen = '.49,.9,0,1';
+const easingSizeOpen = '.62,.08,.21,1';
+const easingOpacity = '.5,0,.5,1';
+
+/**
+ * ボタンをfixedにし、元の位置にプレースホルダーを挿入
+ * @param {Element} button - 現在クリックされたボタン要素
+ */
+function fixButton(button) {
+  // 1. ボタンの Rect を取得
+  const rect = button.getBoundingClientRect();
+  originalRect = rect;
+  activeOpenBtn = button;
+
+  // 2. プレースホルダーを作成し挿入
+  placeholder = document.createElement('div');
+  placeholder.style.width = rect.width + 'px';
+  placeholder.style.height = rect.height + 'px';
+  // マージンを継承して、周囲の要素との間隔を維持
+  placeholder.style.margin = getComputedStyle(button).margin; 
+  
+  // ボタンの直前に挿入し、元の位置を確保
+  button.parentNode.insertBefore(placeholder, button);
+
+  // 3. ボタンをfixed化し、expanderと位置を同期
+  button.style.position = "fixed";
+  button.style.top = rect.top + "px";
+  button.style.left = rect.left + "px";
+  button.style.width = rect.width + "px";
+  button.style.height = rect.height + "px";
+  button.style.margin = "0"; 
+  button.style.zIndex = 1001;
+  button.style.transform = "translate(0%,0%)";
+  button.style.opacity = 0;
+  button.style.pointerEvents = "none";
+}
+
+/**
+ * divを現在のボタン位置に同期
+ * @param {DOMRect} rect - 現在クリックされたボタンの Rect
+ */
+function syncDiv(rect) {
+  // Flexboxで中央配置を実現するため、display を flex に設定
+  expander.style.display = "flex"; 
+  expander.style.top = rect.top + "px";
+  expander.style.left = rect.left + "px";
+  expander.style.width = rect.width + "px";
+  expander.style.height = rect.height + "px";
+  expander.style.opacity = 0;
+  expander.style.transform = "translate(0%,0%)";
+  expander.style.borderRadius = "12px";
+  expander.style.boxShadow = "none"; 
+}
+
+/**
+ * ボタンとプレースホルダーの状態をリセット
+ */
+function resetButton() {
+  if (!activeOpenBtn) return;
+
+  // 1. プレースホルダーを削除
+  if (placeholder) {
+    placeholder.remove();
+    placeholder = null;
+  }
+  
+  // 2. ボタンのfixedスタイルをリセット
+  activeOpenBtn.style.position = "";
+  activeOpenBtn.style.top = "";
+  activeOpenBtn.style.left = "";
+  activeOpenBtn.style.width = "";
+  activeOpenBtn.style.height = "";
+  activeOpenBtn.style.margin = "";
+  activeOpenBtn.style.zIndex = "";
+  activeOpenBtn.style.opacity = "1";
+  activeOpenBtn.style.transform = "translate(0%,0%)";
+  activeOpenBtn.style.pointerEvents = "auto";
+  
+  // 3. expaderのスタイルをリセット
+  expander.style.borderRadius = "";
+  expander.style.boxShadow = "";
+
+  activeOpenBtn = null;
+}
+
+// アニメーション関数 (開く)
+function animateOpen() {
+  const duration = '0.6s';
+  const posTransition = `top ${duration} cubic-bezier(${easingPosOpen}), left ${duration} cubic-bezier(${easingPosOpen})`;
+  const sizeTransition = `width ${duration} cubic-bezier(${easingSizeOpen}), height ${duration} cubic-bezier(${easingSizeOpen})`;
+  const opacityTransition = `opacity ${duration} cubic-bezier(${easingOpacity})`;
+  const transformTransition = `transform ${duration} cubic-bezier(${easingPosOpen})`; 
+  const radiusTransition = `border-radius ${duration} cubic-bezier(${easingPosOpen})`;
+  const shadowTransition = `box-shadow ${duration} ease`;
+  const allTransitions = `${posTransition}, ${sizeTransition}, ${opacityTransition}, ${transformTransition}, ${radiusTransition}, ${shadowTransition}`;
+
+  if (activeOpenBtn) {
+    activeOpenBtn.style.transition = allTransitions;
+  }
+  expander.style.transition = allTransitions;
+
+  requestAnimationFrame(() => {
+    // expaderを全画面に
+    expander.style.top = '50%';
+    expander.style.left = '50%';
+    expander.style.width = '100vw';
+    expander.style.height = '100vh';
+    expander.style.transform = 'translate(-50%,-50%)';
+    expander.style.opacity = 1;
+    expander.style.borderRadius = '0px'; 
+    expander.style.boxShadow = '0px 0px 128px 11px rgba(0, 0, 0, 1)'; 
+
+    // activeOpenBtnをexpanderと同じ状態に
+    if (activeOpenBtn) {
+      activeOpenBtn.style.top = '50%';
+      activeOpenBtn.style.left = '50%';
+      activeOpenBtn.style.width = '100vw';
+      activeOpenBtn.style.height = '100vh';
+      activeOpenBtn.style.transform = 'translate(-50%,-50%)';
+    }
+  });
+}
+
+// アニメーション関数 (閉じる)
+function animateClose() {
+  if (!originalRect || !activeOpenBtn) return;
+
+  const duration = '0.6s';
+  const posTransition = `top ${duration} cubic-bezier(${easingSizeOpen}), left ${duration} cubic-bezier(${easingSizeOpen})`;
+  const sizeTransition = `width ${duration} cubic-bezier(${easingPosOpen}), height ${duration} cubic-bezier(${easingPosOpen})`;
+  const opacityTransition = `opacity ${duration} cubic-bezier(${easingOpacity})`;
+  const transformTransition = `transform ${duration} cubic-bezier(${easingSizeOpen})`; 
+
+  const radiusTransition = `border-radius ${duration} cubic-bezier(${easingPosOpen})`;
+  const shadowTransition = `box-shadow ${duration} ease`;
+  const allTransitions = `${posTransition}, ${sizeTransition}, ${opacityTransition}, ${transformTransition}, ${radiusTransition}, ${shadowTransition}`;
+
+  activeOpenBtn.style.transition = allTransitions;
+  expander.style.transition = allTransitions;
+
+  const rect = originalRect;
+  // expanderを元のボタン位置に
+  expander.style.top = rect.top + 'px';
+  expander.style.left = rect.left + 'px';
+  expander.style.width = rect.width + 'px';
+  expander.style.height = rect.height + 'px';
+  expander.style.transform = 'translate(0%,0%)';
+  expander.style.opacity = 0;
+  expander.style.borderRadius = '12px';
+  expander.style.boxShadow = 'none';
+
+  // activeOpenBtnを元のボタン位置に
+  activeOpenBtn.style.top = rect.top + 'px';
+  activeOpenBtn.style.left = rect.left + 'px';
+  activeOpenBtn.style.width = rect.width + 'px';
+  activeOpenBtn.style.height = rect.height + 'px';
+  activeOpenBtn.style.transform = 'translate(0%,0%)';
+  activeOpenBtn.style.opacity = 1;
+
+  expander.addEventListener('transitionend', function handler(e){
+    // アニメーション完了を待ってからクリーンアップ
+    if(['top','left','width','height', 'border-radius', 'box-shadow'].includes(e.propertyName)){
+      expander.style.display = 'none'; // 閉じた後に display: none に戻す
+      resetButton(); // ここでプレースホルダーを削除
+      expander.removeEventListener('transitionend', handler);
+    }
+  });
+}
+
+// 各ボタンにイベントリスナーを設定
+openBtns.forEach(button => {
+    button.addEventListener('click', () => {
+        // クリックされたボタンを起点としてアニメーションを開始
+        fixButton(button); // originalRect と activeOpenBtn がここで設定される
+        syncDiv(originalRect);
+        animateOpen();
+    });
+});
+
+closeBtn.addEventListener('click', () => {
+  animateClose();
+});
+</script>
+
+</body>
+</html>
