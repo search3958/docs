@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expressive Presentation Builder (Multi-Page)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+<style>
+    :root {
+        /* Material 3 Expressive Blue Tokens */
+        --md-sys-color-primary: #0061A4;
+        --md-sys-color-on-primary: #FFFFFF;
+        --md-sys-color-primary-container: #D1E4FF;
+        --md-sys-color-on-primary-container: #001D36;
+        
+        --md-sys-color-secondary: #535F70;
+        --md-sys-color-secondary-container: #D7E3F7;
+        
+        --md-sys-color-surface: #FDFBFF;
+        --md-sys-color-surface-container: #EEF3F9;
+        --md-sys-color-on-surface: #1A1C1E;
+        
+        --md-sys-color-outline: #73777F;
+        --md-sys-color-outline-variant: #C3C7CF;
+        
+        --md-shadow-level1: 0 1px 2px rgba(0,0,0,0.1), 0 2px 6px 2px rgba(0,0,0,0.05);
+        --md-shadow-level3: 0 4px 8px 3px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1);
+
+        --font-family: 'Google Sans', 'Roboto', sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    
+    body {
+        margin: 0;
+        height: 100vh;
+        font-family: var(--font-family);
+        background-color: var(--md-sys-color-surface-container);
+        color: var(--md-sys-color-on-surface);
+        display: flex;
+        overflow: hidden;
+        position: relative;
+    }
+
+    /* --- Workspace & Canvas --- */
+    .workspace {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-image: radial-gradient(var(--md-sys-color-outline-variant) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+
+    .canvas-scroll-area {
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+    }
+
+    /* Wrapper for all slides */
+    #slide-deck {
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        /* No overflow hidden here to allow selection outlines to show, but be careful */
+    }
+
+    /* Individual Slide Page */
+    .slide-page {
+        width: 1280px;
+        height: 720px;
+        background-color: white;
+        box-shadow: var(--md-shadow-level1);
+        position: absolute;
+        top: 0;
+        left: 0;
+        padding: 24px; 
+        border-radius: 16px;
+        display: none; /* Hidden by default */
+        overflow: hidden;
+    }
+    
+    .slide-page.active-slide {
+        display: block;
+    }
+
+    /* --- Floating Top Bar --- */
+    .top-bar {
+        position: absolute;
+        top: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-20px);
+        height: 64px;
+        background-color: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 32px;
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+        gap: 20px;
+        box-shadow: var(--md-shadow-level3);
+        z-index: 100;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s cubic-bezier(0.2, 0.0, 0, 1.0);
+        pointer-events: none;
+    }
+
+    .top-bar.visible {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
+        pointer-events: auto;
+    }
+
+    /* --- Floating Bottom Bar --- */
+    .bottom-bar {
+        position: absolute;
+        bottom: 32px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: var(--md-sys-color-primary-container);
+        color: var(--md-sys-color-on-primary-container);
+        border-radius: 32px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 16px;
+        gap: 16px;
+        box-shadow: var(--md-shadow-level3);
+        z-index: 100;
+        transition: transform 0.3s;
+    }
+
+    .zoom-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: 16px;
+        padding-left: 16px;
+        border-left: 1px solid rgba(0,0,0,0.1);
+    }
+    .zoom-slider {
+        width: 80px;
+        accent-color: var(--md-sys-color-primary);
+        cursor: pointer;
+    }
+
+    /* --- Sidebar --- */
+    .sidebar {
+        width: 260px;
+        background-color: var(--md-sys-color-surface);
+        border-left: 1px solid var(--md-sys-color-outline-variant);
+        display: flex;
+        flex-direction: column;
+        z-index: 50;
+        height: 100%;
+        box-shadow: -2px 0 8px rgba(0,0,0,0.05);
+        padding-top:64px;
+    }
+
+    /* Slide List Area */
+    .sidebar-section {
+        padding: 16px;
+        border-bottom: 1px solid var(--md-sys-color-outline-variant);
+        display: flex;
+        flex-direction: column;
+        max-height: 50%;
+        overflow-y: auto;
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .section-title {
+        font-size: 14px; color: var(--md-sys-color-primary); margin: 0; font-weight: 700;
+    }
+
+    .mini-btn {
+        background: var(--md-sys-color-primary-container);
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 11px;
+        cursor: pointer;
+        color: var(--md-sys-color-on-primary-container);
+        font-weight: 600;
+    }
+    .mini-btn:active { background: var(--md-sys-color-primary); color: white; }
+
+    /* Thumbnails */
+    .slide-list-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-bottom: 4px;
+        transition: 0.2s;
+    }
+    .slide-list-item:hover { background-color: var(--md-sys-color-surface-container); }
+    .slide-list-item.active {
+        background-color: var(--md-sys-color-primary-container);
+        color: var(--md-sys-color-on-primary-container);
+    }
+    .slide-num { font-size: 12px; font-weight: 700; width: 20px; }
+    .slide-preview {
+        width: 40px; height: 22px;
+        background: white; border: 1px solid var(--md-sys-color-outline-variant);
+        border-radius: 2px;
+    }
+
+    /* Layer Tree */
+    .layer-tree summary {
+        padding: 6px 10px;
+        border-radius: 6px;
+        margin-bottom: 2px;
+        font-size: 12px;
+        cursor: pointer;
+        display: flex; align-items: center; gap: 8px;
+        color: var(--md-sys-color-on-surface);
+    }
+    .layer-tree summary:hover { background-color: var(--md-sys-color-surface-container); }
+    .layer-tree summary.active-layer {
+        background-color: var(--md-sys-color-primary-container);
+        color: var(--md-sys-color-on-primary-container);
+        font-weight: 500;
+    }
+
+    /* --- Play Mode Overrides --- */
+    body.mode-play .sidebar, 
+    body.mode-play .top-bar, 
+    body.mode-play .bottom-bar,
+    body.mode-play .mode-switch-container { 
+        display: none !important; 
+    }
+    
+    body.mode-play .workspace {
+        background: black;
+        cursor: none; /* Hide cursor if desired, or auto */
+    }
+    body.mode-play .canvas-scroll-area {
+        overflow: hidden; /* No scrolling in play mode */
+    }
+    body.mode-play #slide-deck {
+        /* Centered handled by JS transform */
+    }
+    body.mode-play .slide-page {
+        border-radius: 0; /* Sharp corners in play mode */
+        box-shadow: none;
+    }
+
+    /* --- General UI --- */
+    .tool-btn {
+        display: flex; flex-direction: column; align-items: center;
+        background: none; border: none; cursor: pointer; gap: 4px;
+        color: var(--md-sys-color-on-primary-container);
+        padding:0px;
+    }
+    .tool-icon-box {
+        width: fit-content; height: 48px;
+        background-color: rgba(255,255,255,0.5);
+        border-radius: 16px;
+        display: flex; align-items: center; justify-content: center;
+        gap:8px;
+        transition: 0.2s cubic-bezier(0.2, 0.0, 0, 1.0);
+        margin:0px;
+        padding:8px 16px;
+    }
+    .tool-btn:active .tool-icon-box {
+        background-color: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary);
+        transform: scale(1.1);
+    }
+    .tool-label { font-size: 11px; font-weight: 600; }
+
+    .mode-switch-container {
+        position: absolute; top: 24px; right: 24px; z-index: 100;
+        background: var(--md-sys-color-surface); padding: 4px;
+        border-radius: 99px; box-shadow: var(--md-shadow-level1);
+        display: flex;
+    }
+    .mode-btn {
+        padding: 8px 20px; border-radius: 99px; border: none;
+        background: transparent; cursor: pointer; font-weight: 500; transition: 0.2s;
+    }
+    .mode-btn.active { background-color: var(--md-sys-color-primary); color: white; }
+
+    /* Inputs */
+    .toolbar-group { display: flex; align-items: center; gap: 12px; }
+    .divider { width: 1px; height: 32px; background: var(--md-sys-color-outline-variant); }
+    label { font-size: 11px; font-weight: 700; color: var(--md-sys-color-secondary); display: block; margin-bottom: 2px;}
+    input[type="color"] { border: none; width: 36px; height: 36px; cursor: pointer; background: none; border-radius: 50%; }
+    input[type="number"], select { padding: 6px; border-radius: 8px; border: 1px solid var(--md-sys-color-outline-variant); background: var(--md-sys-color-surface); font-size: 13px; }
+
+    /* Editable */
+    .editable-element {
+        position: relative;
+        margin: 8px; padding: 8px; border-radius: 8px; box-sizing: border-box;
+        transition: outline 0.1s;
+    }
+    .editable-element.selected { outline: 3px solid var(--md-sys-color-primary); outline-offset: 1px; z-index: 10; }
+    body.mode-edit .editable-element:hover:not(.selected) { outline: 1px dashed var(--md-sys-color-outline); }
+
+</style>
+</head>
+<body class="mode-edit">
+
+    <div class="mode-switch-container">
+        <button class="mode-btn active" id="btnEdit" onclick="setMode('edit')">Edit</button>
+        <button class="mode-btn" id="btnPlay" onclick="setMode('play')">Play</button>
+    </div>
+
+    <header class="top-bar" id="topBar">
+        <div class="toolbar-group">
+            <span class="material-symbols-rounded">palette</span>
+            <div><label>Fill</label><input type="color" id="inputBg" value="#ffffff"></div>
+            <div><label>Text</label><input type="color" id="inputColor" value="#000000"></div>
+        </div>
+        <div class="divider"></div>
+        <div class="toolbar-group">
+            <span class="material-symbols-rounded">rounded_corner</span>
+            <div><label>Radius</label><input type="number" id="inputRadius" value="8" min="0" max="100" style="width: 50px;"></div>
+        </div>
+        <div class="divider"></div>
+        <div class="toolbar-group">
+            <span class="material-symbols-rounded">grid_view</span>
+            <div>
+                <label>Layout</label>
+                <select id="inputDisplay">
+                    <option value="block">Block</option>
+                    <option value="flex">Flex</option>
+                    <option value="grid">Grid</option>
+                </select>
+            </div>
+            <div id="flexOpts" style="display:none;">
+                <label>Dir</label>
+                <select id="inputFlexDir">
+                    <option value="row">Row</option>
+                    <option value="column">Col</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="workspace">
+        <div class="canvas-scroll-area" id="scrollArea">
+            <div id="slide-deck">
+                </div>
+        </div>
+    </main>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-section" style="flex: 1;">
+            <div class="section-header">
+                <h3 class="section-title">Slides</h3>
+                <button class="mini-btn" onclick="addNewSlide()">+ New</button>
+            </div>
+            <div id="slidesListContainer">
+                </div>
+        </div>
+
+        <div class="sidebar-section" style="flex: 1; border-bottom: none;">
+            <h3 class="section-title">Layers</h3>
+            <div class="layer-tree" id="layerList"></div>
+        </div>
+    </aside>
+
+    <footer class="bottom-bar" id="bottomBar">
+        <button class="tool-btn" onclick="addElement('div')">
+            <div class="tool-icon-box"><span class="material-symbols-rounded">add_box</span>
+            <span class="tool-label">Box</span></div>
+        </button>
+        <button class="tool-btn" onclick="addElement('h2')">
+            <div class="tool-icon-box"><span class="material-symbols-rounded">title</span>
+            <span class="tool-label">Heading</span></div>
+        </button>
+        <button class="tool-btn" onclick="addElement('p')">
+            <div class="tool-icon-box"><span class="material-symbols-rounded">text_fields</span>
+            <span class="tool-label">Text</span></div>
+        </button>
+        <div class="zoom-control">
+            <span class="material-symbols-rounded" style="font-size:18px;">zoom_out</span>
+            <input type="range" class="zoom-slider" id="zoomSlider" min="0.2" max="2.0" step="0.1" value="1.0">
+            <span class="material-symbols-rounded" style="font-size:18px;">zoom_in</span>
+        </div>
+    </footer>
+
+<script>
+    const deck = document.getElementById('slide-deck');
+    const scrollArea = document.getElementById('scrollArea');
+    const topBar = document.getElementById('topBar');
+    const layerList = document.getElementById('layerList');
+    const slidesListContainer = document.getElementById('slidesListContainer');
+    
+    // Inputs
+    const inputBg = document.getElementById('inputBg');
+    const inputColor = document.getElementById('inputColor');
+    const inputRadius = document.getElementById('inputRadius');
+    const inputDisplay = document.getElementById('inputDisplay');
+    const inputFlexDir = document.getElementById('inputFlexDir');
+    const flexOpts = document.getElementById('flexOpts');
+    const zoomSlider = document.getElementById('zoomSlider');
+
+    // State
+    let slides = []; // Array of slide Elements
+    let currentSlideIndex = 0;
+    let selectedElement = null;
+    let currentScale = 1.0;
+    let isPlayMode = false;
+
+    // --- Init ---
+    window.onload = () => {
+        addNewSlide(); // Create first slide
+        fitSlideToScreen();
+    };
+    
+    window.addEventListener('resize', () => {
+        if(isPlayMode) {
+            fitSlideFullScreen();
+        } else {
+            fitSlideToScreen();
+        }
+    });
+
+    // --- Slide Management ---
+    function addNewSlide() {
+        const slideEl = document.createElement('div');
+        slideEl.classList.add('slide-page');
+        slideEl.id = 'slide-' + Date.now();
+        
+        // Add Title by default
+        const title = document.createElement('h2');
+        title.innerHTML = 'New Slide';
+        title.contentEditable = true;
+        title.classList.add('editable-element');
+        title.dataset.type = 'text';
+        title.style.margin = '8px';
+        title.style.padding = '8px';
+        title.style.fontSize = '48px';
+        title.style.textAlign = 'center';
+        attachElementListeners(title);
+        slideEl.appendChild(title);
+
+        // Click on slide background deselects
+        slideEl.addEventListener('click', (e) => {
+            if (e.target === slideEl && !isPlayMode) deselect();
+            if (isPlayMode) nextSlide(); // Click advances slide in play mode
+        });
+
+        deck.appendChild(slideEl);
+        slides.push(slideEl);
+        
+        switchSlide(slides.length - 1);
+        updateSlidesListUI();
+    }
+
+    function switchSlide(index) {
+        if(index < 0 || index >= slides.length) return;
+        
+        deselect();
+        
+        // Toggle Visibility
+        slides.forEach((s, i) => {
+            if(i === index) {
+                s.classList.add('active-slide');
+            } else {
+                s.classList.remove('active-slide');
+            }
+        });
+
+        currentSlideIndex = index;
+        updateSlidesListUI();
+        rebuildLayers();
+    }
+
+    function updateSlidesListUI() {
+        slidesListContainer.innerHTML = '';
+        slides.forEach((s, i) => {
+            const item = document.createElement('div');
+            item.classList.add('slide-list-item');
+            if(i === currentSlideIndex) item.classList.add('active');
+            
+            const num = document.createElement('span');
+            num.className = 'slide-num';
+            num.innerText = i + 1;
+            
+            const preview = document.createElement('div');
+            preview.className = 'slide-preview';
+            
+            item.appendChild(num);
+            item.appendChild(preview);
+            
+            item.onclick = () => switchSlide(i);
+            slidesListContainer.appendChild(item);
+        });
+    }
+
+    function nextSlide() {
+        if(currentSlideIndex < slides.length - 1) switchSlide(currentSlideIndex + 1);
+    }
+    function prevSlide() {
+        if(currentSlideIndex > 0) switchSlide(currentSlideIndex - 1);
+    }
+
+    // --- Mode & Zoom ---
+    function setMode(mode) {
+        document.body.className = `mode-${mode}`;
+        isPlayMode = (mode === 'play');
+        document.getElementById('btnEdit').classList.toggle('active', mode === 'edit');
+        document.getElementById('btnPlay').classList.toggle('active', mode === 'play');
+        
+        if (isPlayMode) {
+            deselect();
+            // Go Fullscreen request could go here, but let's just fit the window
+            fitSlideFullScreen();
+            // Keyboard nav
+            document.addEventListener('keydown', playModeKeyHandler);
+        } else {
+            resetEditModeView();
+            document.removeEventListener('keydown', playModeKeyHandler);
+        }
+    }
+
+    function playModeKeyHandler(e) {
+        if(!isPlayMode) return;
+        if(e.key === 'ArrowRight' || e.key === 'Space') nextSlide();
+        if(e.key === 'ArrowLeft') prevSlide();
+        if(e.key === 'Escape') setMode('edit');
+    }
+
+    function fitSlideToScreen() {
+        if(isPlayMode) return;
+        const padding = 60; 
+        const w = scrollArea.clientWidth - padding;
+        const h = scrollArea.clientHeight - padding;
+        const scale = Math.min(w / 1280, h / 720);
+        setZoom(scale);
+    }
+
+    function fitSlideFullScreen() {
+        // Gabba (Loose/Fit) Logic: Scale to fit inside window (Contain)
+        // To make it fully immersive
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const scale = Math.min(w / 1280, h / 720);
+        
+        deck.style.transformOrigin = 'center center';
+        deck.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        deck.style.position = 'fixed';
+        deck.style.top = '50%';
+        deck.style.left = '50%';
+        deck.style.width = '1280px';
+        deck.style.height = '720px';
+        deck.style.overflow = 'hidden';
+    }
+
+    function resetEditModeView() {
+        deck.style.position = 'relative';
+        deck.style.top = 'auto';
+        deck.style.left = 'auto';
+        deck.style.transform = 'none';
+        deck.style.width = '1280px';
+        deck.style.height = '720px';
+        deck.style.overflow = 'visible';
+        fitSlideToScreen();
+    }
+
+    function setZoom(val) {
+        currentScale = parseFloat(val);
+        deck.style.transform = `scale(${currentScale})`;
+        deck.style.transformOrigin = 'center center';
+        zoomSlider.value = currentScale;
+    }
+    
+    zoomSlider.addEventListener('input', (e) => {
+        if(!isPlayMode) setZoom(e.target.value);
+    });
+
+    // --- Elements ---
+    function getActiveSlide() {
+        return slides[currentSlideIndex];
+    }
+
+    function addElement(type) {
+        const targetSlide = getActiveSlide();
+        const el = document.createElement('div');
+        el.classList.add('editable-element');
+        el.id = 'el-' + Date.now();
+        el.style.margin = '8px';
+        el.style.padding = '8px';
+        el.style.borderRadius = '8px';
+
+        if (type === 'div') {
+            el.style.backgroundColor = '#E1F5FE';
+            el.style.minHeight = '120px';
+            el.style.minWidth = '200px';
+            el.style.display = 'block';
+            el.dataset.type = 'box';
+            
+            // Nested text by default
+            const innerText = document.createElement('div');
+            innerText.contentEditable = true;
+            innerText.innerText = 'Text Box';
+            innerText.classList.add('editable-element');
+            innerText.style.margin = '8px'; innerText.style.padding = '8px';
+            innerText.dataset.type = 'text';
+            el.appendChild(innerText);
+            attachElementListeners(innerText);
+
+        } else if (type === 'h2') {
+            el.innerHTML = 'Heading';
+            el.style.fontSize = '36px';
+            el.style.fontWeight = '700';
+            el.style.color = '#001D36';
+            el.contentEditable = true;
+            el.dataset.type = 'text';
+        } else if (type === 'p') {
+            el.innerHTML = 'Body text';
+            el.style.fontSize = '18px';
+            el.style.color = '#1A1C1E';
+            el.contentEditable = true;
+            el.dataset.type = 'text';
+        }
+
+        // Logic: Add inside selected container if possible
+        let parent = targetSlide;
+        if (selectedElement && selectedElement.dataset.type === 'box' && targetSlide.contains(selectedElement)) {
+            parent = selectedElement;
+        }
+
+        parent.appendChild(el);
+        attachElementListeners(el);
+        selectElement(el);
+        rebuildLayers();
+    }
+
+    function attachElementListeners(el) {
+        el.addEventListener('click', (e) => {
+            if (isPlayMode) return;
+            e.stopPropagation();
+            selectElement(el);
+        });
+    }
+
+    // --- Selection ---
+    function selectElement(el) {
+        if (selectedElement) selectedElement.classList.remove('selected');
+        selectedElement = el;
+        selectedElement.classList.add('selected');
+
+        topBar.classList.add('visible');
+
+        const style = window.getComputedStyle(selectedElement);
+        inputBg.value = rgbToHex(style.backgroundColor) || '#ffffff';
+        inputColor.value = rgbToHex(style.color) || '#000000';
+        inputRadius.value = parseInt(style.borderRadius) || 8;
+        
+        let disp = selectedElement.style.display;
+        if(!disp) disp = 'block'; 
+        inputDisplay.value = disp;
+        
+        if (disp === 'flex') {
+            flexOpts.style.display = 'block';
+            inputFlexDir.value = selectedElement.style.flexDirection || 'row';
+        } else {
+            flexOpts.style.display = 'none';
+        }
+
+        highlightLayer(el.id);
+    }
+
+    function deselect() {
+        if (selectedElement) selectedElement.classList.remove('selected');
+        selectedElement = null;
+        topBar.classList.remove('visible');
+        highlightLayer(null);
+    }
+
+    // Background click logic is handled in slide creation now
+
+    // --- Helpers ---
+    function rgbToHex(rgb) {
+        if (!rgb || rgb === 'rgba(0, 0, 0, 0)' || rgb === 'transparent') return '#ffffff';
+        if (rgb.startsWith('#')) return rgb;
+        const rgbVals = rgb.match(/\d+/g);
+        if (!rgbVals) return '#000000';
+        return "#" + 
+            ("0" + parseInt(rgbVals[0],10).toString(16)).slice(-2) +
+            ("0" + parseInt(rgbVals[1],10).toString(16)).slice(-2) +
+            ("0" + parseInt(rgbVals[2],10).toString(16)).slice(-2);
+    }
+
+    // --- Property Updates ---
+    inputBg.addEventListener('input', (e) => { if(selectedElement) selectedElement.style.backgroundColor = e.target.value; });
+    inputColor.addEventListener('input', (e) => { if(selectedElement) selectedElement.style.color = e.target.value; });
+    inputRadius.addEventListener('input', (e) => { if(selectedElement) selectedElement.style.borderRadius = e.target.value + 'px'; });
+    inputDisplay.addEventListener('change', (e) => {
+        if(selectedElement) {
+            selectedElement.style.display = e.target.value;
+            flexOpts.style.display = (e.target.value === 'flex') ? 'block' : 'none';
+        }
+    });
+    inputFlexDir.addEventListener('change', (e) => { if(selectedElement) selectedElement.style.flexDirection = e.target.value; });
+
+    // --- Layer Tree ---
+    function rebuildLayers() {
+        layerList.innerHTML = '';
+        const currentSlide = getActiveSlide();
+        if(currentSlide) layerList.appendChild(createTree(currentSlide));
+    }
+
+    function createTree(root) {
+        const children = Array.from(root.children).filter(c => c.classList.contains('editable-element'));
+        if (children.length === 0) return document.createTextNode('');
+
+        const ul = document.createElement('div');
+        ul.style.paddingLeft = '12px';
+        
+        children.forEach(child => {
+            const isContainer = child.dataset.type === 'box';
+            let icon = isContainer ? 'add_box' : (child.tagName==='H2'?'title':'text_fields');
+            
+            const summary = document.createElement('summary');
+            summary.id = 'layer-' + child.id;
+            summary.innerHTML = `<span class="material-symbols-rounded layer-icon">${icon}</span> <span>${child.tagName.toLowerCase()}</span>`;
+            summary.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                selectElement(child);
+            };
+
+            if (isContainer) {
+                const details = document.createElement('details');
+                details.open = true;
+                const summaryWrapper = document.createElement('summary');
+                summaryWrapper.style.listStyle = 'none';
+                summaryWrapper.appendChild(summary);
+                
+                details.appendChild(summaryWrapper);
+                details.appendChild(createTree(child));
+                ul.appendChild(details);
+            } else {
+                ul.appendChild(summary);
+            }
+        });
+        return ul;
+    }
+
+    function highlightLayer(id) {
+        document.querySelectorAll('.layer-tree summary').forEach(el => el.classList.remove('active-layer'));
+        if (!id) return;
+        const target = document.getElementById('layer-' + id);
+        if (target) target.classList.add('active-layer');
+    }
+
+    // --- Delete ---
+    window.addEventListener('keydown', (e) => {
+        if (isPlayMode) return;
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+            if (!selectedElement) return;
+            const active = document.activeElement;
+            if (active === selectedElement && selectedElement.isContentEditable) return;
+            
+            selectedElement.remove();
+            deselect();
+            rebuildLayers();
+        }
+    });
+
+</script>
+</body>
+</html>
